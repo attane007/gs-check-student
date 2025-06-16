@@ -1599,14 +1599,16 @@ function searchAttendanceByDate(date, authToken) {
     if (!attendanceSheet || !studentsSheet || !classroomsSheet) {
       return { success: false, error: 'Required sheets not found' };
     }
-    
-    // Get attendance data
+      // Get attendance data
     const attendanceData = attendanceSheet.getDataRange().getValues();
+    Logger.log(`searchAttendanceByDate: Attendance sheet has ${attendanceData.length} rows total`);
     if (attendanceData.length <= 1) {
+      Logger.log('searchAttendanceByDate: No attendance data found (only header or empty)');
       return { success: true, data: [] }; // No attendance data
     }
     
     const attendanceHeader = attendanceData.shift();
+    Logger.log(`searchAttendanceByDate: Attendance header: ${JSON.stringify(attendanceHeader)}`);
     
     // Find column indices for Attendance sheet
     const dateColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'วันที่' || h.toString().trim().toLowerCase() === 'date'));
@@ -1619,6 +1621,8 @@ function searchAttendanceByDate(date, authToken) {
     ));
     const statusColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'สถานะ' || h.toString().trim().toLowerCase() === 'status'));
     
+    Logger.log(`searchAttendanceByDate: Column indices - Date: ${dateColIdx}, StudentID: ${studentIdColIdx}, Classroom: ${classroomColIdx}, Status: ${statusColIdx}`);
+    
     // Validate required columns
     if ([dateColIdx, studentIdColIdx, classroomColIdx, statusColIdx].some(idx => idx === -1)) {
       let missingCols = [];
@@ -1630,10 +1634,10 @@ function searchAttendanceByDate(date, authToken) {
       Logger.log(`searchAttendanceByDate: Missing columns in Attendance sheet: ${missingCols.join(', ')}`);
       return { success: false, error: `Attendance sheet structure error: missing ${missingCols.join(', ')}` };
     }
-    
-    // Get students data
+      // Get students data
     const studentsData = studentsSheet.getDataRange().getValues();
     const studentsHeader = studentsData.shift();
+    Logger.log(`searchAttendanceByDate: Students sheet has ${studentsData.length} rows, header: ${JSON.stringify(studentsHeader)}`);
     
     const studentIdStudentColIdx = studentsHeader.findIndex(h => h && (
         h.toString().trim() === 'รหัสนักเรียน' || 
@@ -1651,9 +1655,11 @@ function searchAttendanceByDate(date, authToken) {
         h.toString().trim().toLowerCase() === 'classroom'
     ));
     
-    // Get classrooms data
+    Logger.log(`searchAttendanceByDate: Students column indices - ID: ${studentIdStudentColIdx}, Name: ${studentNameColIdx}, Classroom: ${studentClassroomColIdx}`);
+      // Get classrooms data
     const classroomsData = classroomsSheet.getDataRange().getValues();
     const classroomsHeader = classroomsData.shift();
+    Logger.log(`searchAttendanceByDate: Classrooms sheet has ${classroomsData.length} rows, header: ${JSON.stringify(classroomsHeader)}`);
     
     const classroomIdColIdx = classroomsHeader.findIndex(h => h && (
         h.toString().trim() === 'ห้องเรียนID' || 
@@ -1666,7 +1672,8 @@ function searchAttendanceByDate(date, authToken) {
         h.toString().trim() === 'ชื่อ'
     ));
     
-    // Create student lookup map
+    Logger.log(`searchAttendanceByDate: Classrooms column indices - ID: ${classroomIdColIdx}, Name: ${classroomNameColIdx}`);
+      // Create student lookup map
     const studentLookup = {};
     studentsData.forEach(row => {
       if (row[studentIdStudentColIdx] && row[studentNameColIdx] && row[studentClassroomColIdx]) {
@@ -1677,6 +1684,7 @@ function searchAttendanceByDate(date, authToken) {
         };
       }
     });
+    Logger.log(`searchAttendanceByDate: Created student lookup with ${Object.keys(studentLookup).length} students`);
     
     // Create classroom lookup map
     const classroomLookup = {};
@@ -1686,12 +1694,15 @@ function searchAttendanceByDate(date, authToken) {
         classroomLookup[classroomId] = row[classroomNameColIdx].toString().trim();
       }
     });
+    Logger.log(`searchAttendanceByDate: Created classroom lookup with ${Object.keys(classroomLookup).length} classrooms`);
     
     // Group attendance by classroom and status
     const attendanceByClassroom = {};
-    
-    // Process attendance records for the specified date
+    let attendanceRecordsProcessed = 0;
+      // Process attendance records for the specified date
     attendanceData.forEach(row => {
+      attendanceRecordsProcessed++;
+      
       // Handle date formatting
       let recordDateStr;
       if (row[dateColIdx] instanceof Date) {
@@ -1711,6 +1722,8 @@ function searchAttendanceByDate(date, authToken) {
         const classroomId = row[classroomColIdx] ? row[classroomColIdx].toString().trim() : '';
         const status = row[statusColIdx] ? row[statusColIdx].toString().trim() : '';
         
+        Logger.log(`searchAttendanceByDate: Found matching record - Date: ${recordDateStr}, Student: ${studentId}, Classroom: ${classroomId}, Status: ${status}`);
+        
         // Get student info
         const studentInfo = studentLookup[studentId];
         if (studentInfo) {
@@ -1726,17 +1739,42 @@ function searchAttendanceByDate(date, authToken) {
                 'สาย': []
               }
             };
+            Logger.log(`searchAttendanceByDate: Initialized classroom ${classroomId} (${classroomLookup[classroomId] || classroomId})`);
+          }
+            // Add student to appropriate status category
+          // Map status from sheet format to display format
+          let statusCategory;
+          switch (status) {
+            case 'เข้าแถว':
+              statusCategory = 'มา';
+              break;
+            case 'ไม่เข้าแถว':
+              statusCategory = 'ขาด';
+              break;
+            case 'มาสาย':
+              statusCategory = 'สาย';
+              break;
+            case 'ลา':
+              statusCategory = 'ลา';
+              break;
+            default:
+              // If status is already in display format, use it directly
+              statusCategory = ['มา', 'ขาด', 'ลา', 'สาย'].includes(status) ? status : 'ขาด';
+              break;
           }
           
-          // Add student to appropriate status category
-          const statusCategory = ['มา', 'ขาด', 'ลา', 'สาย'].includes(status) ? status : 'ขาด';
           attendanceByClassroom[classroomId].students[statusCategory].push({
             studentId: studentId,
             name: studentInfo.name
           });
+          Logger.log(`searchAttendanceByDate: Added student ${studentInfo.name} (${studentId}) to ${classroomId} as ${statusCategory}`);
+        } else {
+          Logger.log(`searchAttendanceByDate: Student ${studentId} not found in student lookup`);
         }
       }
     });
+    
+    Logger.log(`searchAttendanceByDate: Processed ${attendanceRecordsProcessed} attendance records, found ${Object.keys(attendanceByClassroom).length} classrooms with data`);
     
     // Convert to array format for frontend
     const result = Object.values(attendanceByClassroom);

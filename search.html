@@ -376,10 +376,9 @@
             
             google.script.run
                 .withSuccessHandler(function(response) {
-                    setLoadingState(false);
-                    console.log('Search attendance response:', response);
+                    setLoadingState(false);                    console.log('Search attendance response:', response);
                     if (response.success) {
-                        updateSearchResults(response.classroomsDetail, searchDate);
+                        updateSearchResults(response.data, searchDate);
                     } else {
                         if (response.expired) {
                             handleAuthError(response.error || 'Token expired', true);
@@ -394,17 +393,22 @@
                     showErrorModal('Error searching attendance: ' + error.message);
                 })
                 .searchAttendanceByDate(searchDate, currentToken);
-        }
-
-        function updateSearchResults(classroomsDetail, searchDate) {
+        }        function updateSearchResults(classroomsDetail, searchDate) {
             const searchResults = document.getElementById('searchResults');
             const noResults = document.getElementById('noResults');
             const attendanceResults = document.getElementById('attendanceResults');
             const searchResultDate = document.getElementById('searchResultDate');
             
             console.log('Updating search results with:', classroomsDetail);
+            console.log('Search results elements found:', {
+                searchResults: !!searchResults,
+                noResults: !!noResults, 
+                attendanceResults: !!attendanceResults,
+                searchResultDate: !!searchResultDate
+            });
             
             if (!classroomsDetail || classroomsDetail.length === 0) {
+                console.log('No attendance data found for the selected date');
                 searchResults.classList.add('hidden');
                 noResults.classList.remove('hidden');
                 return;
@@ -420,7 +424,18 @@
             // Clear previous results
             attendanceResults.innerHTML = '';
             
-            classroomsDetail.forEach(classroom => {
+            classroomsDetail.forEach(classroomData => {
+                // Transform data from backend format to expected format
+                const classroom = {
+                    classroomName: classroomData.classroomName,
+                    present: classroomData.students?.['มา'] || [],
+                    absent: classroomData.students?.['ขาด'] || [],
+                    excused: classroomData.students?.['ลา'] || [],
+                    late: classroomData.students?.['สาย'] || []
+                };
+                
+                console.log('Transformed classroom data:', classroom);
+                
                 const classroomDiv = document.createElement('div');
                 classroomDiv.className = 'bg-white/80 rounded-xl p-4 border border-white/50 shadow-sm mb-4';
                 

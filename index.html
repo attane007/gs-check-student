@@ -715,14 +715,15 @@
                     if (attendanceStatus[studentId]) {
                         // Apply visual highlighting to the appropriate button after a short delay to ensure DOM is ready
                         setTimeout(() => {
-                            markStudent(studentId, attendanceStatus[studentId]);
+                            // Call markStudent to set UI cues, but not to re-trigger server call for initial state
+                            markStudent(studentId, attendanceStatus[studentId], true /* isInitialSet */);
                         }, 50);
                     }
                 });
                 updateStats(students, attendanceStatus);
             }
             
-            function markStudent(studentId, status) {
+            function markStudent(studentId, status, isInitialSet = false) { // Added isInitialSet parameter
                 attendanceStatus[studentId] = status;
                 const card = document.getElementById(`student-${studentId}`);
                 const buttons = card.querySelectorAll('.action-btn');
@@ -731,6 +732,10 @@
                 buttons.forEach(btn => {
                     btn.classList.remove('ring-2', 'ring-offset-2', 'shadow-lg', 'scale-110');
                     btn.style.transform = '';
+                    // Also remove specific ring colors
+                    ['ring-green-500', 'ring-red-500', 'ring-yellow-500', 'ring-blue-500'].forEach(ringClass => {
+                        btn.classList.remove(ringClass);
+                    });
                 });
                 
                 // Determine which button to highlight
@@ -757,16 +762,23 @@
                         targetButton.classList.add(ringColors[status]);
                     }
                     
-                    // Add animation effect
-                    targetButton.animate([
-                        { transform: 'scale(1.2)' },
-                        { transform: 'scale(1.1)' }
-                    ], {
-                        duration: 200,
-                        iterations: 1
-                    });
+                    // Add animation effect only if not initial set, to avoid spamming animations on load
+                    if (!isInitialSet) {
+                        targetButton.animate([
+                            { transform: 'scale(1.2)' },
+                            { transform: 'scale(1.1)' }
+                        ], {
+                            duration: 200,
+                            iterations: 1
+                        });
+                    }
                 }
                 updateStats(currentStudents, attendanceStatus);
+                
+                // If this is just for setting the initial UI based on loaded data, don't call the server.
+                if (isInitialSet) {
+                    return;
+                }
                 
                 // Call server to record this single attendance event
                 setLoading(true, 'Recording attendance...');

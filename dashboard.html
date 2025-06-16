@@ -763,12 +763,12 @@
                 // Create a wrapper for the list
                 const listWrapper = document.createElement('div');
                 listWrapper.className = 'space-y-2';
-                container.appendChild(listWrapper);
-                  attendees.forEach((att, index) => {
+                container.appendChild(listWrapper);                attendees.forEach((att, index) => {
                     const studentCard = document.createElement('div');
                     studentCard.className = 'flex justify-between items-center bg-white/80 p-4 rounded-xl hover:bg-white transition-all duration-200 shadow-md border border-white/50 transform hover:scale-102';
                     
-                    // Handle potential differences in data structure (studentName vs name)                    const studentName = att.studentName || att.name || 'Unknown Student';
+                    // Handle potential differences in data structure (studentName vs name)
+                    const studentName = att.studentName || att.name || 'Unknown Student';
                     const daysPresent = att.daysPresent || att.days || 0;
                     const studentId = att.studentId || att.id || '';
                     const classroomName = att.classroomName || '';

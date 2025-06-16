@@ -85,6 +85,19 @@ function initializeSheets() {
     initializeUsersSheet(); 
     Logger.log('initializeSheets: Returned from initializeUsersSheet SUCCESSFULLY');
     
+    // ตรวจสอบและแก้ไขข้อมูลใน sheet Students
+    Logger.log('initializeSheets: About to validate and fix student sheet data');
+    const validationResult = validateAndFixStudentSheetData();
+    if (validationResult.success) {
+      Logger.log('initializeSheets: Student sheet validation complete: ' + validationResult.message);
+      if (validationResult.studentsFixed) {
+        Logger.log('initializeSheets: Some student data was fixed to match classroom data.');
+      }
+    } else {
+      Logger.log('initializeSheets: Warning - Student sheet validation failed: ' + validationResult.message);
+      // ไม่ throw error เพื่อให้โปรแกรมยังทำงานต่อไปได้
+    }
+    
     Logger.log('initializeSheets: About to get spreadsheet ID.');
     const id = spreadsheet.getId();
     Logger.log('initializeSheets: spreadsheet.getId() succeeded: ' + id);
@@ -92,7 +105,8 @@ function initializeSheets() {
     const returnValue = {
       success: true,
       spreadsheetId: id,
-      message: 'เตรียม Sheets เรียบร้อยแล้ว'
+      message: 'เตรียม Sheets เรียบร้อยแล้ว' + 
+        (validationResult.studentsFixed ? ' (ได้ทำการแก้ไขข้อมูลนักเรียนบางส่วนให้ตรงกับห้องเรียน)' : '')
     };
     Logger.log('initializeSheets: Success object constructed. About to return.');
     return returnValue;
@@ -754,21 +768,43 @@ function getStudentsByClassroom(classroomId, authToken) {
         return { success: true, students: [] }; // No students data
     }
     const headers = data.shift(); // Remove header row and get headers
-    // Assuming student ID is col 0, firstName col 1, lastName col 2, classroomId col 3
-    // Find index of 'ห้องเรียนID'
-    const classroomIdColIndex = headers.findIndex(header => header.toString().trim() === 'ห้องเรียนID');
+    // Assuming student ID is col 0, firstName col 1, lastName col 2, classroomId col 3    // Find index of classroom column, which might be labeled 'ห้องเรียนID' or similar
+    const classroomIdColIndex = headers.findIndex(header => 
+        header && (
+            header.toString().trim() === 'ห้องเรียนID' || 
+            header.toString().trim().toLowerCase() === 'classroomid' ||
+            header.toString().trim().toLowerCase() === 'classroom id' ||
+            header.toString().trim() === 'ห้องเรียน'
+        )
+    );
+    
+    // If not found at known labels, assume it's the 4th column (index 3) as per initialization pattern
     if (classroomIdColIndex === -1) {
-        Logger.log('Header "ห้องเรียนID" not found in Students sheet.');
-        return { success: false, error: 'Students sheet is not configured correctly (missing ห้องเรียนID header).', students: [] };
-    }
-
+        Logger.log('Warning: Could not find exact classroom ID header. Using column index 3 (4th column) based on initialization pattern.');
+        
+        // Check if we have at least 4 columns
+        if (headers.length < 4) {
+            Logger.log('Error: Students sheet does not have enough columns. Expected at least 4 columns.');
+            return { success: false, error: 'Students sheet does not have enough columns. Expected at least 4 columns.', students: [] };
+        }
+        
+        // Use column 3 (4th column) as the classroom ID column
+        const students = data
+            .filter(row => row.length > 3 && row[3] && row[3].toString().trim() === classroomId.toString().trim())
+            .map(row => ({ 
+                id: row[0],          // รหัสนักเรียน
+                firstName: row[1],   // ชื่อ
+                lastName: row[2]     // นามสกุล
+            }));
+        return { success: true, students: students };
+    }    // Use the found classroom ID column index
     const students = data
       .filter(row => row[classroomIdColIndex] && row[classroomIdColIndex].toString().trim() === classroomId.toString().trim())
       .map(row => ({ 
           id: row[0],          // รหัสนักเรียน
           firstName: row[1],   // ชื่อ
           lastName: row[2]     // นามสกุล
-          // classroom: row[3] // classroom ID, not needed by current frontend renderStudent
+          // classroom: row[classroomIdColIndex] // classroom ID, not needed by current frontend renderStudent
       }));
     return { success: true, students: students };
   } catch (error) {
@@ -1008,3 +1044,265 @@ function getDailyAttendanceStats(days, authToken) {
 
 // Ensure initializeUsersSheet and addInitialAdminUser are still present and correct
 // ... (initializeUsersSheet, addInitialAdminUser, hashPassword, customBytesToHex, generateSalt, verifyUser, addUser functions should remain largely unchanged as they deal with user persistence, not session/auth token type)
+
+/**
+ * ฟังก์ชันตรวจสอบและแก้ไขข้อมูลใน sheet Students ให้ตรงกับ sheet Classrooms
+ */
+function validateAndFixStudentSheetData() {
+  try {
+    Logger.log('Starting validation of student sheet data...');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const studentsSheet = ss.getSheetByName(STUDENTS_SHEET_NAME);
+    const classroomsSheet = ss.getSheetByName(CLASSROOMS_SHEET_NAME);
+    
+    if (!studentsSheet || !classroomsSheet) {
+      Logger.log('Error: One or both sheets are missing.');
+      return {
+        success: false,
+        message: 'One or both required sheets are missing.'
+      };
+    }
+    
+    // 1. ตรวจสอบ header ของ sheet Students
+    const studentsHeader = studentsSheet.getRange(1, 1, 1, studentsSheet.getLastColumn()).getValues()[0];
+    const roomIdColIndex = studentsHeader.findIndex(header => 
+        header && (
+            header.toString().trim() === 'ห้องเรียนID' || 
+            header.toString().trim().toLowerCase() === 'classroomid' ||
+            header.toString().trim().toLowerCase() === 'classroom id' ||
+            header.toString().trim() === 'ห้องเรียน'
+        )
+    );
+    
+    // หาก header ไม่ถูกต้อง ให้แก้ไข
+    if (roomIdColIndex === -1) {
+      Logger.log('Student sheet has incorrect headers. Fixing...');
+      // ตรวจสอบว่ามีข้อมูลอยู่หรือไม่ก่อนที่จะแก้ไข header
+      const lastRow = studentsSheet.getLastRow();
+      const hasData = lastRow > 1;
+      
+      // เก็บข้อมูลเดิม (ถ้ามี)
+      let oldData = [];
+      if (hasData) {
+        oldData = studentsSheet.getRange(2, 1, lastRow - 1, studentsSheet.getLastColumn()).getValues();
+      }
+      
+      // ล้าง sheet และสร้าง header ใหม่
+      studentsSheet.clear();
+      studentsSheet.getRange(1, 1, 1, 4).setValues([
+        ['รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ห้องเรียนID']
+      ]);
+      const headerRange = studentsSheet.getRange(1, 1, 1, 4);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#E1BAFF');
+      headerRange.setHorizontalAlignment('center');
+      
+      // คืนข้อมูลเดิม (ถ้ามี) โดยปรับให้เข้ากับโครงสร้างใหม่
+      if (hasData && oldData.length > 0) {
+        // เตรียมข้อมูลที่ปรับแล้ว
+        const fixedData = oldData.map(row => {
+          // สร้างแถวข้อมูลใหม่ที่มี 4 คอลัมน์
+          let newRow = [null, null, null, null];
+          
+          // คัดลอกข้อมูลเท่าที่มี
+          for (let i = 0; i < Math.min(row.length, 4); i++) {
+            newRow[i] = row[i];
+          }
+          
+          // ตรวจสอบว่าคอลัมน์ห้องเรียน (index 3) มีข้อมูลหรือไม่
+          // ถ้าไม่มี ให้ใส่ 'C101' เป็นค่าเริ่มต้น
+          if (!newRow[3]) {
+            newRow[3] = 'C101';
+          }
+          
+          return newRow;
+        });
+        
+        // เขียนข้อมูลลง sheet
+        if (fixedData.length > 0) {
+          studentsSheet.getRange(2, 1, fixedData.length, 4).setValues(fixedData);
+        }
+      } else {
+        // ถ้าไม่มีข้อมูลเดิม ให้เพิ่มข้อมูลตัวอย่าง
+        studentsSheet.getRange(2, 1, 5, 4).setValues([
+          ['S20001', 'สมชาย', 'ใจดี', 'C101'],
+          ['S20002', 'สมหญิง', 'ใจงาม', 'C101'],
+          ['S20003', 'ประเสริฐ', 'เก่งเก้า', 'C102'],
+          ['S20004', 'วรรณา', 'สวยงาม', 'C102'],
+          ['S20005', 'ชัยวัฒน์', 'รุ่งเรือง', 'C103']
+        ]);
+      }
+    }
+    
+    // 2. ตรวจสอบความถูกต้องของรหัสห้องเรียนใน sheet Students เทียบกับ sheet Classrooms
+    const studentsData = studentsSheet.getDataRange().getValues();
+    const studentsHeaders = studentsData.shift(); // ลบ header ออก
+    
+    // ตรวจสอบหา index ของคอลัมน์ห้องเรียน (ควรจะเป็น 3 หรือ D)
+    const classroomIdColIndex = studentsHeaders.findIndex(header => 
+        header && (
+            header.toString().trim() === 'ห้องเรียนID' || 
+            header.toString().trim().toLowerCase() === 'classroomid' ||
+            header.toString().trim() === 'ห้องเรียน'
+        )
+    );
+    
+    if (classroomIdColIndex === -1) {
+      Logger.log('Error: Still cannot find classroom column in student sheet after fixing headers.');
+      return {
+        success: false,
+        message: 'Cannot find classroom column in student sheet.'
+      };
+    }
+    
+    // ดึงข้อมูลรหัสห้องเรียนทั้งหมดจาก sheet Classrooms
+    const classroomsData = classroomsSheet.getDataRange().getValues();
+    classroomsData.shift(); // ลบ header ออก
+    const validClassroomIds = classroomsData.map(row => row[0].toString().trim());
+    
+    // ตรวจสอบว่านักเรียนแต่ละคนอยู่ในห้องเรียนที่มีอยู่จริงหรือไม่
+    let needsFix = false;
+    let fixedStudentsData = studentsData.map(row => {
+      const classroomId = row[classroomIdColIndex] ? row[classroomIdColIndex].toString().trim() : '';
+      
+      // ถ้าห้องเรียนของนักเรียนไม่มีอยู่ใน sheet Classrooms
+      if (classroomId === '' || !validClassroomIds.includes(classroomId)) {
+        needsFix = true;
+        // กำหนดห้องเรียนแรกในรายการให้กับนักเรียน
+        row[classroomIdColIndex] = validClassroomIds[0] || 'C101';
+      }
+      
+      return row;
+    });
+    
+    // อัปเดต sheet Students ด้วยข้อมูลที่แก้ไขแล้ว
+    if (needsFix && fixedStudentsData.length > 0) {
+      Logger.log('Fixing classroom IDs for students...');
+      studentsSheet.getRange(2, 1, fixedStudentsData.length, studentsSheet.getLastColumn()).setValues(fixedStudentsData);
+    }
+    
+    Logger.log('Student sheet validation complete.');
+    return {
+      success: true,
+      message: 'Student sheet validation and fix complete.',
+      studentsFixed: needsFix
+    };
+  } catch (error) {
+    Logger.log(`Error in validateAndFixStudentSheetData: ${error.message} Stack: ${error.stack}`);
+    return {
+      success: false,
+      message: 'Error validating student sheet: ' + error.message
+    };
+  }
+}
+
+// เรียกใช้ฟังก์ชัน validateAndFixStudentSheetData จากฟังก์ชัน initializeSheets
+function initializeSheets() {
+  Logger.log('ENTERING initializeSheets'); 
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // สร้างหรือตรวจสอบ Sheet สำหรับข้อมูลนักเรียน
+    let studentSheet = spreadsheet.getSheetByName(STUDENTS_SHEET_NAME);
+    if (!studentSheet) {
+      studentSheet = spreadsheet.insertSheet(STUDENTS_SHEET_NAME);
+    }
+    const studentLastRow = studentSheet.getLastRow();
+    if (studentLastRow === 0 || studentSheet.getRange(1, 1).getValue() === '') {
+      studentSheet.getRange(1, 1, 1, 4).setValues([
+        ['รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ห้องเรียนID']
+      ]);
+      const headerRange = studentSheet.getRange(1, 1, 1, 4);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#E1BAFF');
+      headerRange.setHorizontalAlignment('center');
+      if (studentLastRow === 0) {
+        studentSheet.getRange(2, 1, 5, 4).setValues([
+          ['S20001', 'สมชาย', 'ใจดี', 'C101'],
+          ['S20002', 'สมหญิง', 'ใจงาม', 'C101'],
+          ['S20003', 'ประเสริฐ', 'เก่งเก้า', 'C102'],
+          ['S20004', 'วรรณา', 'สวยงาม', 'C102'],
+          ['S20005', 'ชัยวัฒน์', 'รุ่งเรือง', 'C103']
+        ]);
+      }
+    }
+
+    // สร้างหรือตรวจสอบ Sheet สำหรับข้อมูลห้องเรียน
+    let classroomSheet = spreadsheet.getSheetByName(CLASSROOMS_SHEET_NAME);
+    if (!classroomSheet) {
+      classroomSheet = spreadsheet.insertSheet(CLASSROOMS_SHEET_NAME);
+    }
+    const classroomLastRow = classroomSheet.getLastRow();
+    if (classroomLastRow === 0 || classroomSheet.getRange(1, 1).getValue() === '') {
+      classroomSheet.getRange(1, 1, 1, 2).setValues([
+        ['ห้องเรียนID', 'ชื่อห้องเรียน']
+      ]);
+      const headerRange = classroomSheet.getRange(1, 1, 1, 2);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#BAE1FF');
+      headerRange.setHorizontalAlignment('center');
+      if (classroomLastRow === 0) {
+          classroomSheet.getRange(2, 1, 3, 2).setValues([
+              ['C101', 'ม.1/1'],
+              ['C102', 'ม.1/2'],
+              ['C103', 'ม.1/3']
+          ]);
+      }
+    }
+    
+    // สร้างหรือตรวจสอบ Sheet สำหรับข้อมูลการเข้าเรียน
+    let attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
+    if (!attendanceSheet) {
+      attendanceSheet = spreadsheet.insertSheet(ATTENDANCE_SHEET_NAME);
+    }
+    const attendanceLastRow = attendanceSheet.getLastRow();
+    if (attendanceLastRow === 0 || attendanceSheet.getRange(1, 1).getValue() === '') {
+      attendanceSheet.getRange(1, 1, 1, 6).setValues([
+        ['วันที่', 'เวลา', 'รหัสนักเรียน', 'ชื่อ-นามสกุล', 'ห้องเรียน', 'สถานะ']
+      ]);
+      const headerRange = attendanceSheet.getRange(1, 1, 1, 6);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#BAFFC9');
+      headerRange.setHorizontalAlignment('center');
+    }
+    
+    Logger.log('initializeSheets: About to call initializeUsersSheet');
+    initializeUsersSheet(); 
+    Logger.log('initializeSheets: Returned from initializeUsersSheet SUCCESSFULLY');
+    
+    // ตรวจสอบและแก้ไขข้อมูลใน sheet Students
+    Logger.log('initializeSheets: About to validate and fix student sheet data');
+    const validationResult = validateAndFixStudentSheetData();
+    if (validationResult.success) {
+      Logger.log('initializeSheets: Student sheet validation complete: ' + validationResult.message);
+      if (validationResult.studentsFixed) {
+        Logger.log('initializeSheets: Some student data was fixed to match classroom data.');
+      }
+    } else {
+      Logger.log('initializeSheets: Warning - Student sheet validation failed: ' + validationResult.message);
+      // ไม่ throw error เพื่อให้โปรแกรมยังทำงานต่อไปได้
+    }
+    
+    Logger.log('initializeSheets: About to get spreadsheet ID.');
+    const id = spreadsheet.getId();
+    Logger.log('initializeSheets: spreadsheet.getId() succeeded: ' + id);
+
+    const returnValue = {
+      success: true,
+      spreadsheetId: id,
+      message: 'เตรียม Sheets เรียบร้อยแล้ว' + 
+        (validationResult.studentsFixed ? ' (ได้ทำการแก้ไขข้อมูลนักเรียนบางส่วนให้ตรงกับห้องเรียน)' : '')
+    };
+    Logger.log('initializeSheets: Success object constructed. About to return.');
+    return returnValue;
+    
+  } catch (error) {
+    Logger.log('ERROR INSIDE initializeSheets: ' + error.toString() + ' Stack: ' + error.stack);
+    // console.error('Error initializing sheets:', error); // Original line
+    // return { // Original block
+    //   success: false,
+    //   message: 'เกิดข้อผิดพลาดในการเตรียม Sheets: ' + error.message
+    // };
+    throw error; // Re-throw to be caught by doGet, to match current behavior and provide stack to client if possible
+  }
+}

@@ -232,12 +232,13 @@
                     ปิด
                 </button>
             </div>
-        </div>
-
-        <script>
+        </div>        <script>
             const appUrl = '<?!= appUrl ?>'; // Injected by Apps Script doGet
             let currentUser = null;
-            let currentToken = null;
+            let currentToken = localStorage.getItem('jwtToken'); // Initialize on script load, not just in DOMContentLoaded
+
+            // For debugging
+            console.log('Token initialized from localStorage:', currentToken ? 'Token exists' : 'No token found');
 
             // Helper function for top-level navigation in Apps Script
             function triggerTopNavigation(url) {
@@ -245,7 +246,11 @@
             }
 
             document.addEventListener('DOMContentLoaded', function() {
-                currentToken = localStorage.getItem('jwtToken');
+                // Token already initialized globally, but we'll check it again here
+                if (!currentToken) {
+                    currentToken = localStorage.getItem('jwtToken');
+                    console.log('Token re-checked in DOMContentLoaded:', currentToken ? 'Token exists' : 'No token found');
+                }
                 const storedUserInfo = localStorage.getItem('userInfo');
                 const mainContentWrapper = document.getElementById('mainContentWrapper');
                 const authMessageArea = document.getElementById('authMessageArea');
@@ -418,34 +423,54 @@
                         handleAuthError('Error loading classrooms: ' + error.message);
                         checkAllLoaded();
                     })
-                    .getClassrooms(currentToken);
-
-                // Fetch daily attendance stats for "todayCount"
+                    .getClassrooms(currentToken);                // Fetch daily attendance stats for "todayCount"
+                console.log('About to call getDailyAttendanceStats with token:', currentToken ? 'Token exists' : 'No token!');
+                if (!currentToken) {
+                    console.warn('WARNING: Token is missing for getDailyAttendanceStats call! Trying to recover...');
+                    currentToken = localStorage.getItem('jwtToken'); 
+                    console.log('Recovery attempt result:', currentToken ? 'Token recovered' : 'Still no token');
+                }
+                
                 google.script.run
                     .withSuccessHandler(function(response) {
                         statsLoaded = true;
-                        if (response.success && response.totalPresentToday !== undefined) {
-                            document.getElementById('todayCount').textContent = response.totalPresentToday;
-                        } else if (!response.success) {
+                        console.log('getDailyAttendanceStats response:', response);                        if (response.success) {
+                            if (response.totalPresentToday !== undefined) {
+                                document.getElementById('todayCount').textContent = response.totalPresentToday;
+                            } else if (response.dailyStats && response.dailyStats.length > 0) {
+                                // If we have daily stats, use them to calculate total present for today
+                                const today = new Date();
+                                const todayString = today.getFullYear() + '-' + 
+                                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                    String(today.getDate()).padStart(2, '0');
+                                
+                                const todayStat = response.dailyStats.find(stat => stat.date === todayString);
+                                if (todayStat) {
+                                    document.getElementById('todayCount').textContent = todayStat.present;
+                                } else {
+                                    console.warn('No stats found for today in dailyStats array');
+                                    document.getElementById('todayCount').textContent = '0';
+                                }
+                            } else {
+                                console.warn('Daily attendance stats loaded successfully but data is missing.');
+                                document.getElementById('todayCount').textContent = '0';
+                            }
+                        } else {
                             console.error('Failed to load daily attendance stats:', response.error || 'Unknown error');
                             if(response.expired) {
                                 handleAuthError(response.error || 'Session expired while loading daily stats.', response.expired);
                             } else {
                                 document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
                             }
-                        } else {
-                             console.warn('Daily attendance stats loaded successfully but data is missing.');
-                             document.getElementById('todayCount').textContent = '-';
                         }
                         checkAllLoaded();
-                    })
-                    .withFailureHandler(function(error) {
+                    })                    .withFailureHandler(function(error) {
                         statsLoaded = true;
                         console.error('Error loading daily attendance stats:', error.message);
                         document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
                         checkAllLoaded();
                     })
-                    .getDailyAttendanceStats(currentToken);
+                    .getDailyAttendanceStats(7, currentToken); // Pass days=7 as first parameter
             }
 
             function populateClassroomDropdown(classrooms) {

@@ -829,18 +829,129 @@ function getDashboardData(dateFromString, dateToString, authToken) {
 
     if (!attendanceSheet || !classroomSheet || !studentSheet) {
       return { success: false, error: 'One or more data sheets are missing.' };
-    }
-
+    }    // ข้อมูลจากตาราง
     const attendanceData = attendanceSheet.getDataRange().getValues();
     const classroomData = classroomSheet.getDataRange().getValues();
     const studentData = studentSheet.getDataRange().getValues();
 
-    attendanceData.shift(); // Remove header
-    classroomData.shift(); // Remove header
-    studentData.shift(); // Remove header
+    // ข้อมูล header ของแต่ละตาราง
+    const attendanceHeader = attendanceData.shift(); // Remove and get header
+    const classroomHeader = classroomData.shift(); // Remove and get header
+    const studentHeader = studentData.shift(); // Remove and get header
 
-    const classrooms = classroomData.map(row => ({ id: row[0], name: row[1] }));
-    const students = studentData.map(row => ({ id: row[0], name: `${row[1]} ${row[2]}`, classroomId: row[3] }));
+    Logger.log('Dashboard - Processing sheet data with headers: Students: ' + JSON.stringify(studentHeader) + 
+              ', Attendance: ' + JSON.stringify(attendanceHeader));
+
+    // ค้นหา index ของคอลัมน์ที่สำคัญใน sheet Students - ไม่ควรแฮร์ดโค้ด
+    // Find student ID column (ควรจะอยู่คอลัมน์แรกเสมอ แต่ตรวจสอบเพื่อความแน่นอน)
+    const studentIDColIndex = studentHeader.findIndex(header => 
+        header && (header.toString().trim() === 'รหัสนักเรียน' || 
+                  header.toString().trim().toLowerCase() === 'student id' ||
+                  header.toString().trim().toLowerCase() === 'studentid')
+    );
+    const actualStudentIDColIndex = studentIDColIndex !== -1 ? studentIDColIndex : 0;
+    
+    // Find first name column
+    const studentFirstNameColIndex = studentHeader.findIndex(header => 
+        header && (header.toString().trim() === 'ชื่อ' || 
+                  header.toString().trim().toLowerCase() === 'first name' ||
+                  header.toString().trim().toLowerCase() === 'firstname' ||
+                  header.toString().trim().toLowerCase() === 'name')
+    );
+    const actualStudentFirstNameColIndex = studentFirstNameColIndex !== -1 ? studentFirstNameColIndex : 1;
+    
+    // Find last name column
+    const studentLastNameColIndex = studentHeader.findIndex(header => 
+        header && (header.toString().trim() === 'นามสกุล' || 
+                  header.toString().trim().toLowerCase() === 'last name' ||
+                  header.toString().trim().toLowerCase() === 'lastname' ||
+                  header.toString().trim().toLowerCase() === 'surname')
+    );
+    const actualStudentLastNameColIndex = studentLastNameColIndex !== -1 ? studentLastNameColIndex : 2;
+    
+    // หา index ของคอลัมน์ห้องเรียนใน sheet Students (อาจเป็น index ที่ 3 หรือชื่ออื่น)
+    const studentClassroomColIndex = studentHeader.findIndex(header => 
+        header && (
+            header.toString().trim() === 'ห้องเรียนID' || 
+            header.toString().trim().toLowerCase() === 'classroomid' ||
+            header.toString().trim() === 'ห้องเรียน' ||
+            header.toString().trim().toLowerCase() === 'classroom' ||
+            header.toString().trim().toLowerCase() === 'classroom id'
+        )
+    );
+    
+    const actualStudentClassroomColIndex = studentClassroomColIndex !== -1 ? studentClassroomColIndex : 3;
+    Logger.log(`Dashboard: Student Classroom column found at index ${actualStudentClassroomColIndex}`);    // ค้นหา index ของคอลัมน์ที่สำคัญใน sheet Attendance
+    // ส่วนใหญ่จะมีโครงสร้างคล้ายกัน แต่เพื่อความแน่นอนเราจะค้นหา index ที่ถูกต้อง
+    
+    // Find date column
+    const attendanceDateColIndex = attendanceHeader.findIndex(header => 
+        header && (header.toString().trim() === 'วันที่' || 
+                  header.toString().trim().toLowerCase() === 'date')
+    );
+    const actualAttendanceDateColIndex = attendanceDateColIndex !== -1 ? attendanceDateColIndex : 0;
+    
+    // Find student ID column
+    const attendanceStudentIDColIndex = attendanceHeader.findIndex(header => 
+        header && (header.toString().trim() === 'รหัสนักเรียน' || 
+                  header.toString().trim().toLowerCase() === 'student id' ||
+                  header.toString().trim().toLowerCase() === 'studentid')
+    );
+    const actualAttendanceStudentIDColIndex = attendanceStudentIDColIndex !== -1 ? attendanceStudentIDColIndex : 2;
+    
+    // Find classroom column
+    const attendanceClassroomColIndex = attendanceHeader.findIndex(header => 
+        header && (header.toString().trim() === 'ห้องเรียน' || 
+                  header.toString().trim().toLowerCase() === 'classroom' ||
+                  header.toString().trim() === 'ห้องเรียนชื่อ' ||
+                  header.toString().trim().toLowerCase() === 'classroom name')
+    );
+    const actualAttendanceClassroomColIndex = attendanceClassroomColIndex !== -1 ? attendanceClassroomColIndex : 4;
+    
+    // Find status column
+    const attendanceStatusColIndex = attendanceHeader.findIndex(header => 
+        header && (header.toString().trim() === 'สถานะ' || 
+                  header.toString().trim().toLowerCase() === 'status' ||
+                  header.toString().trim() === 'การเข้าเรียน' ||
+                  header.toString().trim().toLowerCase() === 'attendance')
+    );
+    const actualAttendanceStatusColIndex = attendanceStatusColIndex !== -1 ? attendanceStatusColIndex : 5;
+    
+    // Log detected column indexes
+    Logger.log(`Dashboard - Detected column indexes for Attendance: 
+      Date: ${actualAttendanceDateColIndex}, 
+      StudentID: ${actualAttendanceStudentIDColIndex}, 
+      Classroom: ${actualAttendanceClassroomColIndex}, 
+      Status: ${actualAttendanceStatusColIndex}`);
+      
+    Logger.log(`Dashboard - Detected column indexes for Students: 
+      ID: ${actualStudentIDColIndex}, 
+      FirstName: ${actualStudentFirstNameColIndex}, 
+      LastName: ${actualStudentLastNameColIndex}, 
+      ClassroomID: ${actualStudentClassroomColIndex}`);    // แปลงข้อมูลจากตาราง - ตรวจสอบข้อมูลที่อ่านมา
+    const classroomIdIndex = 0;  // expected to be first column
+    const classroomNameIndex = classroomHeader.findIndex(header => 
+        header && (header.toString().trim() === 'ชื่อห้องเรียน' || 
+                  header.toString().trim().toLowerCase() === 'classroom name' ||
+                  header.toString().trim() === 'ชื่อ' || 
+                  header.toString().trim().toLowerCase() === 'name')
+    );
+    const actualClassroomNameIndex = classroomNameIndex !== -1 ? classroomNameIndex : 1; // default to second column
+    
+    Logger.log(`Dashboard - Classroom sheet: Using name column at index ${actualClassroomNameIndex}`);
+
+    // Map classroom data with detected column indexes
+    const classrooms = classroomData.map(row => ({ 
+        id: row[classroomIdIndex], 
+        name: row[actualClassroomNameIndex] 
+    }));
+    
+    // Map student data with detected column indexes
+    const students = studentData.map(row => ({ 
+        id: row[actualStudentIDColIndex], 
+        name: `${row[actualStudentFirstNameColIndex]} ${row[actualStudentLastNameColIndex]}`, 
+        classroomId: row[actualStudentClassroomColIndex] 
+    }));
 
     const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
     let filterStartDate = dateFromString ? new Date(dateFromString) : null;
@@ -853,6 +964,12 @@ function getDashboardData(dateFromString, dateToString, authToken) {
     if (filterEndDate) {
       filterEndDate.setHours(23, 59, 59, 999);
     }
+    
+    // Log actual data counts
+    Logger.log(`Dashboard - Data counts: Classrooms: ${classrooms.length}, Students: ${students.length}, Attendance rows: ${attendanceData.length}`);
+    if (classrooms.length === 0 || students.length === 0) {
+      Logger.log('Warning: One or more critical data sets are empty! This may cause incorrect statistics.');
+    }
 
     const stats = {
       totalPresentToday: 0,
@@ -863,65 +980,92 @@ function getDashboardData(dateFromString, dateToString, authToken) {
     };
     const todayClassroomStatsMap = new Map();
     const overallClassroomStatsMap = new Map();
-    const studentAttendanceCount = new Map();
-
-    attendanceData.forEach(row => {
-      const recordDateStr = row[0]; // Assuming date is in first column as string 'yyyy-MM-dd'
-      const recordDate = new Date(recordDateStr);
-      const studentId = row[2];
-      const status = row[5] ? row[5].toString().toLowerCase() : '';
-      const classroomNameFromAttendance = row[4]; // Classroom name as recorded in attendance
-
-      // Today's overall stats
-      if (recordDateStr === today) {
-        if (status === 'present' || status === 'late') {
-          stats.totalPresentToday++;
-        } else if (status === 'absent') {
-          stats.totalAbsentToday++;
+    const studentAttendanceCount = new Map();    attendanceData.forEach(row => {
+      // Use the detected column indexes
+      const recordDateStr = row[actualAttendanceDateColIndex]; 
+      let recordDate;
+      
+      // Ensure date is properly formatted
+      if (recordDateStr instanceof Date) {
+        recordDate = recordDateStr;
+      } else {
+        try {
+          recordDate = new Date(recordDateStr);
+        } catch (e) {
+          Logger.log(`Error parsing date: ${recordDateStr}`);
+          return; // Skip this row if date can't be parsed
         }
       }
-
-      // Today's classroom stats
-      if (recordDateStr === today) {
+      
+      const recordDateFormatted = Utilities.formatDate(recordDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      
+      // Access other fields with appropriate column indexes
+      const studentId = row[actualAttendanceStudentIDColIndex];
+      const status = row[actualAttendanceStatusColIndex] ? row[actualAttendanceStatusColIndex].toString().toLowerCase() : '';
+      const classroomNameFromAttendance = row[actualAttendanceClassroomColIndex]; // Classroom name as recorded in attendance      // Today's overall stats - use formatted date for comparison
+      const isToday = recordDateFormatted === today;
+      if (isToday) {
+        // Check for various present/late status formats
+        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
+          stats.totalPresentToday++;
+        } 
+        // Check for various absent status formats
+        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
+          stats.totalAbsentToday++;
+        }
+      }      // Today's classroom stats
+      if (isToday && classroomNameFromAttendance) {
         let classroomTodayStat = todayClassroomStatsMap.get(classroomNameFromAttendance);
         if (!classroomTodayStat) {
           classroomTodayStat = { classroomName: classroomNameFromAttendance, present: 0, absent: 0, total: 0 };
           todayClassroomStatsMap.set(classroomNameFromAttendance, classroomTodayStat);
         }
-        if (status === 'present' || status === 'late') {
+        
+        // Check for various present/late status formats
+        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
           classroomTodayStat.present++;
-        } else if (status === 'absent') {
+        } 
+        // Check for various absent status formats
+        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
           classroomTodayStat.absent++;
         }
-        if (status === 'present' || status === 'late' || status === 'absent') {
-            classroomTodayStat.total++;
+        
+        // Count in total if any recognized status
+        if (status === 'present' || status === 'late' || status === 'absent' || 
+            status === 'มา' || status === 'สาย' || status === 'ขาด' || status === 'ลา') {
+          classroomTodayStat.total++;
         }
-      }
-
-      // Date range filtering for overall classroom breakdown and top attendees
+      }      // Date range filtering for overall classroom breakdown and top attendees
       let isInDateRange = true;
       if (filterStartDate && recordDate < filterStartDate) isInDateRange = false;
       if (filterEndDate && recordDate > filterEndDate) isInDateRange = false;
 
-      if (isInDateRange) {
+      if (isInDateRange && classroomNameFromAttendance) {
         // Overall classroom breakdown for selected range
         let classroomOverallStat = overallClassroomStatsMap.get(classroomNameFromAttendance);
         if (!classroomOverallStat) {
           classroomOverallStat = { name: classroomNameFromAttendance, present: 0, absent: 0, total: 0 };
           overallClassroomStatsMap.set(classroomNameFromAttendance, classroomOverallStat);
         }
-        if (status === 'present' || status === 'late') {
+        
+        // Check for various present/late status formats
+        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
           classroomOverallStat.present++;
-        } else if (status === 'absent') {
+          
+          // Track top attendees only for present/late statuses
+          if (studentId) {
+            studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
+          }
+        } 
+        // Check for various absent status formats
+        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
           classroomOverallStat.absent++;
         }
-         if (status === 'present' || status === 'late' || status === 'absent') {
-            classroomOverallStat.total++;
-        }
-
-        // Top attendees for selected range
-        if (status === 'present' || status === 'late') {
-          studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
+        
+        // Count in total if any recognized status
+        if (status === 'present' || status === 'late' || status === 'absent' || 
+            status === 'มา' || status === 'สาย' || status === 'ขาด' || status === 'ลา') {
+          classroomOverallStat.total++;
         }
       }
     });
@@ -953,8 +1097,22 @@ function getDashboardData(dateFromString, dateToString, authToken) {
         const studentDetail = students.find(s => s.id.toString() === studentId.toString());
         return { studentName: studentDetail ? studentDetail.name : 'Unknown Student', daysPresent };
       });
-    stats.topAttendees = sortedTopAttendees;
+    stats.topAttendees = sortedTopAttendees;    // Make sure topAttendees exists in the stats object
+    if (!stats.topAttendees) {
+      stats.topAttendees = sortedTopAttendees;
+    }
 
+    // Include detailed logging for troubleshooting
+    Logger.log('getDashboardData returning - Stats structure: ' + 
+              JSON.stringify({
+                totalPresent: stats.totalPresentToday,
+                totalAbsent: stats.totalAbsentToday,
+                rate: stats.overallAttendanceRateToday,
+                hasClassrooms: stats.overallClassroomBreakdown.length > 0,
+                hasTopAttendees: stats.topAttendees.length > 0,
+                todayStatsCount: todayClassroomStats.length
+              }));
+              
     return { 
         success: true, 
         stats: stats, 
@@ -1006,22 +1164,66 @@ function getDailyAttendanceStats(days, authToken) {
       targetDate.setDate(today.getDate() - i);
       const dateString = Utilities.formatDate(targetDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
       dailyStatsMap.set(dateString, { date: dateString, present: 0, absent: 0 });
+    }    // Get column indexes for attendance data
+    const attendanceHeader = attendanceData.length > 0 ? attendanceData[0] : [];
+    
+    // Find date column
+    const dateDolIndex = attendanceHeader.findIndex(header => 
+        header && (header.toString().trim() === 'วันที่' || 
+                  header.toString().trim().toLowerCase() === 'date')
+    );
+    const actualDateColIndex = dateDolIndex !== -1 ? dateDolIndex : 0;
+    
+    // Find status column
+    const statusColIndex = attendanceHeader.findIndex(header => 
+        header && (header.toString().trim() === 'สถานะ' || 
+                  header.toString().trim().toLowerCase() === 'status' ||
+                  header.toString().trim() === 'การเข้าเรียน' ||
+                  header.toString().trim().toLowerCase() === 'attendance')
+    );
+    const actualStatusColIndex = statusColIndex !== -1 ? statusColIndex : 5;
+    
+    // Remove header if we have data
+    if (attendanceData.length > 0) {
+      attendanceData.shift();
     }
-
+    
+    Logger.log(`Daily stats - Using column indexes - Date: ${actualDateColIndex}, Status: ${actualStatusColIndex}`);
+    
     // Populate stats from attendance data
     attendanceData.forEach(row => {
-      if (!row || row.length < 6) { // Basic check for valid row structure
+      if (!row || row.length <= Math.max(actualDateColIndex, actualStatusColIndex)) { 
           Logger.log('Skipping invalid row in attendance data: ' + JSON.stringify(row));
           return; 
       }
-      const recordDateStr = row[0] ? Utilities.formatDate(new Date(row[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : null;
-      const status = row[5] ? row[5].toString().toLowerCase() : '';
+      
+      // Handle date properly
+      let recordDate;
+      const dateValue = row[actualDateColIndex];
+      
+      if (dateValue instanceof Date) {
+        recordDate = dateValue;
+      } else {
+        try {
+          recordDate = new Date(dateValue);
+        } catch (e) {
+          Logger.log(`Error parsing date in daily stats: ${dateValue}`);
+          return; // Skip this row if date can't be parsed
+        }
+      }
+      
+      const recordDateStr = Utilities.formatDate(recordDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      const status = row[actualStatusColIndex] ? row[actualStatusColIndex].toString().toLowerCase() : '';
 
       if (recordDateStr && dailyStatsMap.has(recordDateStr)) {
         let stat = dailyStatsMap.get(recordDateStr);
-        if (status === 'present' || status === 'late') {
+        
+        // Check for various present/late status formats
+        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
           stat.present++;
-        } else if (status === 'absent') {
+        } 
+        // Check for various absent status formats
+        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
           stat.absent++;
         }
         // No need to dailyStatsMap.set(recordDateStr, stat) as stat is a reference
@@ -1030,7 +1232,12 @@ function getDailyAttendanceStats(days, authToken) {
 
     const dailyStats = Array.from(dailyStatsMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date)); // Sort by date ascending
 
-    return { success: true, dailyStats: dailyStats };
+    Logger.log(`getDailyAttendanceStats returning ${dailyStats.length} days of data. Sample: ${JSON.stringify(dailyStats.slice(0, 2))}`);
+    
+    return { 
+      success: true, 
+      dailyStats: dailyStats 
+    };
 
   } catch (error) {
     Logger.log('Error in getDailyAttendanceStats: ' + error.message + ' Stack: ' + error.stack);
@@ -1304,5 +1511,88 @@ function initializeSheets() {
     //   message: 'เกิดข้อผิดพลาดในการเตรียม Sheets: ' + error.message
     // };
     throw error; // Re-throw to be caught by doGet, to match current behavior and provide stack to client if possible
+  }
+}
+
+// Function to get today's attendance records for a specific classroom
+function getTodayAttendanceByClassroom(classroomId, authToken) {
+  const verificationResult = verifyJwt(authToken);
+  if (!verificationResult.valid) {
+    return { 
+      success: false, 
+      error: 'Authentication failed: ' + verificationResult.error, 
+      attendanceRecords: [], 
+      expired: verificationResult.expired || false 
+    };
+  }
+
+  Logger.log(`User ${verificationResult.payload.user.username} requesting today's attendance for classroom ID: ${classroomId}`);
+  
+  if (!classroomId) {
+    return { success: false, error: 'Classroom ID not provided.', attendanceRecords: [] };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const attendanceSheet = ss.getSheetByName(ATTENDANCE_SHEET_NAME);
+    
+    if (!attendanceSheet) {
+      return { success: false, error: 'Attendance sheet not found.', attendanceRecords: [] };
+    }
+    
+    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const attendanceData = attendanceSheet.getDataRange().getValues();
+    
+    // Get headers
+    const headers = attendanceData.shift();
+    
+    // Find the relevant column indexes
+    const dateColIndex = 0; // Date is typically the first column
+    const studentIdColIndex = 2; // Student ID is typically the third column
+    const classroomColIndex = 4; // Classroom is typically the fifth column
+    const statusColIndex = 5; // Status is typically the sixth column
+    
+    // Filter records for today and the specified classroom
+    const todaysRecords = attendanceData.filter(row => {
+      if (!row || row.length <= Math.max(dateColIndex, classroomColIndex, statusColIndex)) {
+        return false;
+      }
+      
+      let recordDate;
+      if (row[dateColIndex] instanceof Date) {
+        recordDate = Utilities.formatDate(row[dateColIndex], Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      } else {
+        try {
+          recordDate = Utilities.formatDate(new Date(row[dateColIndex]), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        } catch (e) {
+          return false; // Skip if date can't be parsed
+        }
+      }
+      
+      // Match both date and classroom
+      return recordDate === today && 
+             row[classroomColIndex] && 
+             row[classroomColIndex].toString().trim() === classroomId.toString().trim();
+    });
+    
+    // Convert to a more usable format - mapping student IDs to their attendance status
+    const attendanceMap = {};
+    todaysRecords.forEach(record => {
+      // If multiple records exist for a student, take the latest one (as they appear in order in the sheet)
+      attendanceMap[record[studentIdColIndex]] = record[statusColIndex].toString().toLowerCase();
+    });
+    
+    return { 
+      success: true, 
+      attendanceRecords: attendanceMap, 
+      date: today 
+    };
+  } catch (error) {
+    Logger.log('Error fetching today\'s attendance: ' + error.message);
+    return { 
+      success: false, 
+      error: 'Error fetching attendance records: ' + error.message, 
+      attendanceRecords: [] 
+    };
   }
 }

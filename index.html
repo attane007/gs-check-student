@@ -123,35 +123,43 @@
                         <div class="text-center mb-8">
                             <h2 class="text-3xl font-bold text-gray-800 mb-2">เช็คชื่อนักเรียน</h2>
                             <p class="text-gray-600">เลือกห้องเรียนเพื่อแสดงรายชื่อนักเรียน</p>
-                        </div>
-
-                        <!-- Classroom Selection -->
+                        </div>                        <!-- Classroom Selection -->
                         <div class="mb-8">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">เลือกห้องเรียน</label>
-                            <select 
-                                id="classroomSelect" 
-                                class="w-full px-6 py-4 text-lg border-2 border-pastel-blue/50 rounded-xl focus:border-pastel-purple focus:outline-none bg-white/90"
-                                onchange="loadClassroomStudents()"
-                            >
-                                <option value="">-- เลือกห้องเรียน --</option>
-                            </select>
+                            <label class="block text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                                <i class="fas fa-door-open text-pastel-purple mr-2"></i>
+                                เลือกห้องเรียน
+                            </label>
+                            <div class="relative">
+                                <select 
+                                    id="classroomSelect" 
+                                    class="w-full px-6 py-4 text-lg border-2 border-pastel-blue/50 rounded-xl focus:border-pastel-purple focus:outline-none bg-white/90 appearance-none"
+                                    onchange="loadClassroomStudents()"
+                                >
+                                    <option value="">-- เลือกห้องเรียน --</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Students List -->
-                        <div id="studentsListContainer" class="hidden">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-xl font-bold text-gray-800">รายชื่อนักเรียน</h3>
-                                <div class="flex space-x-2">
+                        <!-- Students List -->                        <div id="studentsListContainer" class="hidden">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                                    <i class="fas fa-users text-pastel-purple mr-2"></i>
+                                    รายชื่อนักเรียน
+                                </h3>
+                                <div class="flex space-x-3">
                                     <button 
                                         onclick="markAllPresent()" 
-                                        class="bg-gradient-to-r from-pastel-green to-pastel-mint text-gray-800 font-semibold py-2 px-4 rounded-lg hover:opacity-90 simple-hover text-sm"
+                                        class="bg-gradient-to-r from-pastel-green to-pastel-mint text-gray-800 font-semibold py-2 px-5 rounded-xl hover:shadow-lg transition-all duration-200 text-sm"
                                     >
                                         <i class="fas fa-check-double mr-1"></i>
                                         เข้าเรียนทั้งหมด
                                     </button>
                                     <button 
                                         onclick="markAllAbsent()" 
-                                        class="bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-2 px-4 rounded-lg hover:opacity-90 simple-hover text-sm"
+                                        class="bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-2 px-5 rounded-xl hover:shadow-lg transition-all duration-200 text-sm"
                                     >
                                         <i class="fas fa-times-circle mr-1"></i>
                                         ขาดเรียนทั้งหมด
@@ -159,16 +167,60 @@
                                 </div>
                             </div>
                             
-                            <div id="studentsList" class="space-y-2 max-h-96 overflow-y-auto">
+                            <!-- Student Search Box -->
+                            <div class="mb-4 relative">
+                                <input 
+                                    id="studentSearch" 
+                                    type="text" 
+                                    placeholder="ค้นหาชื่อนักเรียน..." 
+                                    class="w-full px-4 py-3 pr-10 border-2 border-pastel-blue/20 rounded-xl focus:border-pastel-purple focus:outline-none bg-white/80"
+                                    oninput="filterStudents()"
+                                >
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                            </div>
+                            
+                            <!-- Legend for attendance status -->
+                            <div class="flex flex-wrap justify-center gap-3 mb-4 text-xs">
+                                <div class="flex items-center">
+                                    <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-green to-pastel-mint mr-1"></span>
+                                    <span>มาเรียน</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-coral to-pastel-pink mr-1"></span>
+                                    <span>ขาดเรียน</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-yellow to-pastel-peach mr-1"></span>
+                                    <span>มาสาย</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-blue to-pastel-sky mr-1"></span>
+                                    <span>ลา</span>
+                                </div>
+                            </div>
+                            
+                            <div id="studentsList" class="space-y-2 max-h-96 overflow-y-auto pr-1">
                                 <!-- Students will be loaded here -->
                             </div>
-                        </div>
-
-                        <!-- Loading Indicator -->
-                        <div id="loadingIndicator" class="hidden text-center py-4">
-                            <div class="inline-flex items-center space-x-2">
-                                <div class="w-6 h-6 border-4 border-pastel-purple border-t-transparent rounded-full animate-spin"></div>
-                                <span class="text-gray-600">กำลังประมวลผล...</span>
+                            
+                            <!-- No results message -->
+                            <div id="noStudentsFound" class="hidden text-center py-6 text-gray-500">
+                                <i class="fas fa-search text-3xl mb-2 text-gray-400"></i>
+                                <p>ไม่พบนักเรียนที่ค้นหา</p>
+                            </div>
+                        </div>                        <!-- Loading Indicator -->
+                        <div id="loadingIndicator" class="hidden fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+                            <div class="glass-effect rounded-xl p-8 text-center">
+                                <div class="mb-4 relative">
+                                    <div class="w-16 h-16 border-4 border-pastel-purple border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <i class="fas fa-school text-pastel-purple text-sm"></i>
+                                    </div>
+                                </div>
+                                <p id="loadingMessage" class="text-lg font-medium text-gray-700">กำลังประมวลผล...</p>
+                                <p class="text-sm text-gray-500 mt-1">โปรดรอสักครู่</p>
                             </div>
                         </div>
 
@@ -177,15 +229,21 @@
                     </div>
                 </div>
                 <!-- Side Panel -->
-                <div class="space-y-6">
-                    <!-- Classroom Info Card -->
+                <div class="space-y-6">                    <!-- Classroom Info Card -->
                     <div class="glass-effect rounded-2xl p-6 simple-hover">
                         <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                             <i class="fas fa-chalkboard-teacher text-pastel-purple mr-2"></i>
                             ข้อมูลห้องเรียน
                         </h3>
                         <div id="classroomInfo" class="text-gray-600">
-                            <p class="text-center py-8">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>
+                            <div class="flex items-center justify-center h-48">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-school text-2xl text-pastel-purple"></i>
+                                    </div>
+                                    <p class="text-gray-600">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -385,14 +443,39 @@
                 console.error('Auth Error:', errorMessage);
                 showErrorModal('Authentication Error: ' + errorMessage + (isExpired ? ' (Token Expired)' : ''), true);
                 // The modal's close button will handle logout via closeModalAndMaybeLogout
-            }
-
-            function setLoading(isLoading, message = 'Loading...') {
-                const indicator = document.getElementById('loadingIndicator'); // Assuming a global one or adapt
+            }            function setLoading(isLoading, message = 'กำลังประมวลผล...') {
+                const indicator = document.getElementById('loadingIndicator');
+                const loadingMessage = document.getElementById('loadingMessage');
+                
                 if (indicator) {
-                    const textSpan = indicator.querySelector('span');
-                    if (textSpan) textSpan.textContent = message;
-                    indicator.classList.toggle('hidden', !isLoading);
+                    if (isLoading) {
+                        // Update message
+                        if (loadingMessage) {
+                            loadingMessage.textContent = message;
+                        }
+                        
+                        // Show loading with fade-in animation
+                        document.body.classList.add('overflow-hidden'); // Prevent scrolling while loading
+                        indicator.style.opacity = '0';
+                        indicator.classList.remove('hidden');
+                        
+                        setTimeout(() => {
+                            indicator.style.transition = 'opacity 0.3s ease-in';
+                            indicator.style.opacity = '1';
+                        }, 10);
+                        
+                    } else {
+                        // Fade out animation
+                        indicator.style.transition = 'opacity 0.3s ease-out';
+                        indicator.style.opacity = '0';
+                        
+                        setTimeout(() => {
+                            indicator.classList.add('hidden');
+                            document.body.classList.remove('overflow-hidden');
+                            indicator.style.transition = '';
+                            indicator.style.opacity = '1';
+                        }, 300);
+                    }
                 }
             }
 
@@ -462,9 +545,9 @@
                             } else {
                                 document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
                             }
-                        }
-                        checkAllLoaded();
-                    })                    .withFailureHandler(function(error) {
+                        }                        checkAllLoaded();
+                    })
+                    .withFailureHandler(function(error) {
                         statsLoaded = true;
                         console.error('Error loading daily attendance stats:', error.message);
                         document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
@@ -483,9 +566,7 @@
                     option.textContent = classroom.name;
                     select.appendChild(option);
                 });
-            }
-
-            function loadClassroomStudents() {
+            }            function loadClassroomStudents() {
                 const classroomSelect = document.getElementById('classroomSelect');
                 const selectedClassroomId = classroomSelect.value;
                 const studentsListDiv = document.getElementById('studentsList');
@@ -499,18 +580,40 @@
                     return;
                 }
 
-                setLoading(true, 'Loading students...');
+                setLoading(true, 'กำลังโหลดข้อมูลนักเรียน...');
                 resultDisplay.classList.add('hidden');
                 resultDisplay.textContent = '';
-
+                
+                // First get the list of students
                 google.script.run
-                    .withSuccessHandler(function(response) {
-                        setLoading(false);
-                        if (response.success && response.students) {
-                            renderStudents(response.students);
-                            studentsListContainer.classList.remove('hidden');
-                        } else if (!response.success) {
-                            handleAuthError(response.error || 'Failed to load students.', response.expired);
+                    .withSuccessHandler(function(studentsResponse) {
+                        if (studentsResponse.success && studentsResponse.students) {
+                            // After getting students, fetch today's attendance records for this classroom
+                            google.script.run
+                                .withSuccessHandler(function(attendanceResponse) {
+                                    setLoading(false);
+                                    
+                                    let existingAttendance = {};
+                                    if (attendanceResponse.success && attendanceResponse.attendanceRecords) {
+                                        existingAttendance = attendanceResponse.attendanceRecords;
+                                        console.log('Loaded existing attendance records:', existingAttendance);
+                                    }
+                                    
+                                    // Render students with their existing attendance statuses
+                                    renderStudents(studentsResponse.students, existingAttendance);
+                                    studentsListContainer.classList.remove('hidden');
+                                })
+                                .withFailureHandler(function(error) {
+                                    setLoading(false);
+                                    console.error('Error loading attendance records:', error);
+                                    // Even if attendance fails, still show students
+                                    renderStudents(studentsResponse.students, {});
+                                    studentsListContainer.classList.remove('hidden');
+                                })
+                                .getTodayAttendanceByClassroom(selectedClassroomId, currentToken);
+                        } else if (!studentsResponse.success) {
+                            setLoading(false);
+                            handleAuthError(studentsResponse.error || 'Failed to load students.', studentsResponse.expired);
                             studentsListContainer.classList.add('hidden');
                         }
                     })
@@ -519,72 +622,149 @@
                         handleAuthError('Error loading students: ' + error.message);
                         studentsListContainer.classList.add('hidden');
                     })
-                    .getStudentsByClassroom(selectedClassroomId, currentToken); // Assuming this function exists and is protected
-            }
-
-            let currentStudents = []; // To keep track of students for the current classroom
+                    .getStudentsByClassroom(selectedClassroomId, currentToken);
+            }            let currentStudents = []; // To keep track of students for the current classroom
             let attendanceStatus = {}; // studentId: 'present'/'absent'/'late'
-
-            function renderStudents(students) {
+            
+            function renderStudents(students, existingAttendance) {
+                console.log('renderStudents called with', students.length, 'students and', 
+                    existingAttendance ? Object.keys(existingAttendance).length : 0, 'attendance records');
+                    
                 currentStudents = students;
                 attendanceStatus = {}; // Reset status for new list
+                
+                // Apply any existing attendance records that came from the server
+                if (existingAttendance && typeof existingAttendance === 'object') {
+                    console.log('Applying existing attendance records to UI:', existingAttendance);
+                    Object.keys(existingAttendance).forEach(studentId => {
+                        attendanceStatus[studentId] = existingAttendance[studentId];
+                    });
+                }
+                
                 const listDiv = document.getElementById('studentsList');
                 listDiv.innerHTML = ''; // Clear previous list
-
+                
                 if (students.length === 0) {
-                    listDiv.innerHTML = '<p class="text-gray-500 text-center py-4">No students found in this classroom.</p>';
+                    listDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-10">
+                            <div class="w-20 h-20 bg-pastel-blue/20 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-user-slash text-3xl text-gray-400"></i>
+                            </div>
+                            <p class="text-gray-500 text-center">ไม่พบนักเรียนในห้องเรียนนี้</p>
+                        </div>
+                    `;
                     updateStats(students, attendanceStatus);
                     return;
                 }
-
+                
                 students.forEach(student => {
                     const studentId = student.id; // Assuming student object has id, firstName, lastName
-                    attendanceStatus[studentId] = null; // Initially unmarked
-
+                    // If this student has no attendance status yet in our status map, set to null (unmarked)
+                    if (attendanceStatus[studentId] === undefined) {
+                        attendanceStatus[studentId] = null;
+                    }
+                    
                     const card = document.createElement('div');
-                    card.className = 'student-card bg-white/80 p-3 rounded-lg shadow flex items-center justify-between transition-all duration-200';
+                    card.className = 'student-card mb-3 glass-effect p-4 rounded-xl flex items-center justify-between transition-all duration-300 hover:shadow-lg border border-white/20';
                     card.id = `student-${studentId}`;
 
                     card.innerHTML = `
                         <div class="flex items-center">
-                            <div class="w-10 h-10 rounded-full bg-pastel-lavender flex items-center justify-center mr-3">
-                                <i class="fas fa-user text-pastel-purple"></i>
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-r from-pastel-purple to-pastel-blue flex items-center justify-center mr-4 shadow-sm">
+                                <i class="fas fa-user text-white"></i>
                             </div>
                             <div>
-                                <p class="font-semibold text-gray-700">${student.firstName} ${student.lastName}</p>
-                                <p class="text-xs text-gray-500">ID: ${studentId}</p>
+                                <p class="font-semibold text-gray-700 text-lg">${student.firstName} ${student.lastName}</p>
+                                <p class="text-xs text-gray-500">รหัสนักเรียน: ${studentId}</p>
                             </div>
                         </div>
-                        <div class="student-actions space-x-1">
-                            <button title="Present" onclick="markStudent('${studentId}', 'present')" class="action-btn bg-green-100 text-green-600 hover:bg-green-200"><i class="fas fa-check"></i></button>
-                            <button title="Absent" onclick="markStudent('${studentId}', 'absent')" class="action-btn bg-red-100 text-red-600 hover:bg-red-200"><i class="fas fa-times"></i></button>
-                            <button title="Late" onclick="markStudent('${studentId}', 'late')" class="action-btn bg-yellow-100 text-yellow-600 hover:bg-yellow-200"><i class="fas fa-clock"></i></button>
-                            <button title="Excused" onclick="markStudent('${studentId}', 'excused')" class="action-btn bg-blue-100 text-blue-600 hover:bg-blue-200"><i class="fas fa-info-circle"></i></button>
+                        <div class="student-actions flex space-x-2">
+                            <button 
+                                title="มาเรียน" 
+                                onclick="markStudent('${studentId}', 'present')" 
+                                class="action-btn bg-gradient-to-r from-pastel-green/70 to-pastel-mint/70 hover:from-pastel-green hover:to-pastel-mint text-green-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
+                            >
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button 
+                                title="ขาดเรียน" 
+                                onclick="markStudent('${studentId}', 'absent')" 
+                                class="action-btn bg-gradient-to-r from-pastel-coral/70 to-pastel-pink/70 hover:from-pastel-coral hover:to-pastel-pink text-red-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
+                            >
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button 
+                                title="มาสาย" 
+                                onclick="markStudent('${studentId}', 'late')" 
+                                class="action-btn bg-gradient-to-r from-pastel-yellow/70 to-pastel-peach/70 hover:from-pastel-yellow hover:to-pastel-peach text-yellow-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
+                            >
+                                <i class="fas fa-clock"></i>
+                            </button>
+                            <button 
+                                title="ลา" 
+                                onclick="markStudent('${studentId}', 'excused')" 
+                                class="action-btn bg-gradient-to-r from-pastel-blue/70 to-pastel-sky/70 hover:from-pastel-blue hover:to-pastel-sky text-blue-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
+                            >
+                                <i class="fas fa-info-circle"></i>
+                            </button>
                         </div>
                     `;
                     listDiv.appendChild(card);
+                    
+                    // If this student has a status already, highlight the corresponding button
+                    if (attendanceStatus[studentId]) {
+                        // Apply visual highlighting to the appropriate button after a short delay to ensure DOM is ready
+                        setTimeout(() => {
+                            markStudent(studentId, attendanceStatus[studentId]);
+                        }, 50);
+                    }
                 });
                 updateStats(students, attendanceStatus);
             }
-
+            
             function markStudent(studentId, status) {
                 attendanceStatus[studentId] = status;
                 const card = document.getElementById(`student-${studentId}`);
                 const buttons = card.querySelectorAll('.action-btn');
-                buttons.forEach(btn => btn.classList.remove('ring-2', 'ring-offset-1', 'ring-green-500', 'ring-red-500', 'ring-yellow-500', 'ring-blue-500'));
                 
+                // Remove active style from all buttons
+                buttons.forEach(btn => {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'shadow-lg', 'scale-110');
+                    btn.style.transform = '';
+                });
+                
+                // Determine which button to highlight
                 let targetButton;
-                if (status === 'present') targetButton = card.querySelector('button[title="Present"]');
-                else if (status === 'absent') targetButton = card.querySelector('button[title="Absent"]');
-                else if (status === 'late') targetButton = card.querySelector('button[title="Late"]');
-                else if (status === 'excused') targetButton = card.querySelector('button[title="Excused"]');
+                if (status === 'present') targetButton = card.querySelector('button[title="มาเรียน"]');
+                else if (status === 'absent') targetButton = card.querySelector('button[title="ขาดเรียน"]');
+                else if (status === 'late') targetButton = card.querySelector('button[title="มาสาย"]');
+                else if (status === 'excused') targetButton = card.querySelector('button[title="ลา"]');
 
+                // Apply active style to the selected button
                 if (targetButton) {
-                    targetButton.classList.add('ring-2', 'ring-offset-1');
-                    if (status === 'present') targetButton.classList.add('ring-green-500');
-                    else if (status === 'absent') targetButton.classList.add('ring-red-500');
-                    else if (status === 'late') targetButton.classList.add('ring-yellow-500');
-                    else if (status === 'excused') targetButton.classList.add('ring-blue-500');
+                    targetButton.classList.add('ring-2', 'ring-offset-2', 'shadow-lg');
+                    targetButton.style.transform = 'scale(1.1)';
+                    
+                    // Define ring colors based on status
+                    const ringColors = {
+                        'present': 'ring-green-500',
+                        'absent': 'ring-red-500',
+                        'late': 'ring-yellow-500',
+                        'excused': 'ring-blue-500'
+                    };
+                    
+                    if (ringColors[status]) {
+                        targetButton.classList.add(ringColors[status]);
+                    }
+                    
+                    // Add animation effect
+                    targetButton.animate([
+                        { transform: 'scale(1.2)' },
+                        { transform: 'scale(1.1)' }
+                    ], {
+                        duration: 200,
+                        iterations: 1
+                    });
                 }
                 updateStats(currentStudents, attendanceStatus);
                 
@@ -592,12 +772,44 @@
                 setLoading(true, 'Recording attendance...');
                 google.script.run
                     .withSuccessHandler(function(response) {
-                        setLoading(false);
-                        const resultDisplay = document.getElementById('resultDisplay');
-                        resultDisplay.textContent = response.message;
-                        resultDisplay.className = response.success ? 'text-green-600 p-2 text-sm' : 'text-red-600 p-2 text-sm';
+                        setLoading(false);                        const resultDisplay = document.getElementById('resultDisplay');
+                        
+                        // Create a more visually appealing result notification
+                        if (response.success) {
+                            resultDisplay.innerHTML = `
+                                <div class="flex items-center bg-gradient-to-r from-pastel-green/30 to-pastel-mint/30 p-3 rounded-lg border border-green-200">
+                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                        <i class="fas fa-check text-green-600"></i>
+                                    </div>
+                                    <span>${response.message}</span>
+                                </div>
+                            `;
+                        } else {
+                            resultDisplay.innerHTML = `
+                                <div class="flex items-center bg-gradient-to-r from-pastel-coral/30 to-pastel-pink/30 p-3 rounded-lg border border-red-200">
+                                    <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                                        <i class="fas fa-exclamation-circle text-red-600"></i>
+                                    </div>
+                                    <span>${response.message}</span>
+                                </div>
+                            `;
+                        }
+                        
                         resultDisplay.classList.remove('hidden');
-                        setTimeout(() => resultDisplay.classList.add('hidden'), 3000);
+                        
+                        // Create smooth fade out effect
+                        setTimeout(() => {
+                            resultDisplay.style.opacity = '1';
+                            setTimeout(() => {
+                                resultDisplay.style.transition = 'opacity 0.5s ease-out';
+                                resultDisplay.style.opacity = '0';
+                                setTimeout(() => {
+                                    resultDisplay.classList.add('hidden');
+                                    resultDisplay.style.opacity = '1';
+                                    resultDisplay.style.transition = '';
+                                }, 500);
+                            }, 2000);
+                        }, 0);
                         
                         if (response.success) {
                             if (response.newTotalPresentToday !== undefined) {
@@ -649,20 +861,71 @@
                 const progressPercentage = totalStudents > 0 ? (markedStudents / totalStudents) * 100 : 0;
                 document.getElementById('attendanceProgress').style.width = `${progressPercentage}%`;
                 document.getElementById('attendancePercentage').textContent = `${attendanceRate.toFixed(0)}%`;
-                
-                // Update classroom info (example)
+                  // Update classroom info with a more beautiful design
                 const classroomSelect = document.getElementById('classroomSelect');
                 const classroomInfoDiv = document.getElementById('classroomInfo');
+                
                 if (classroomSelect.value) {
+                    const classroomName = classroomSelect.options[classroomSelect.selectedIndex].text;
+                    const totalPresent = present + late;
+                    
                     classroomInfoDiv.innerHTML = `
-                        <p><strong>ห้องเรียน:</strong> ${classroomSelect.options[classroomSelect.selectedIndex].text}</p>
-                        <p><strong>จำนวนนักเรียน:</strong> ${totalStudents}</p>
-                        <p><strong>มาเรียน (รวมสาย):</strong> ${present + late}</p>
-                        <p><strong>ขาดเรียน:</strong> ${absent}</p>
-                        <p><strong>ลา:</strong> ${excused}</p>
+                        <div class="mb-4 text-center">
+                            <h4 class="text-xl font-bold text-gray-800 mb-1">${classroomName}</h4>
+                            <p class="text-sm text-gray-600">จำนวนนักเรียนทั้งหมด: ${totalStudents} คน</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                            <!-- Present Card -->
+                            <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-xl p-3 text-center">
+                                <div class="w-10 h-10 mx-auto mb-1 bg-white/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user-check text-green-700"></i>
+                                </div>
+                                <p class="text-xl font-bold text-gray-800">${totalPresent}</p>
+                                <p class="text-xs text-gray-700">มาเรียน</p>
+                            </div>
+                            
+                            <!-- Absent Card -->
+                            <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-xl p-3 text-center">
+                                <div class="w-10 h-10 mx-auto mb-1 bg-white/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user-times text-red-700"></i>
+                                </div>
+                                <p class="text-xl font-bold text-gray-800">${absent}</p>
+                                <p class="text-xs text-gray-700">ขาดเรียน</p>
+                            </div>
+                            
+                            <!-- Leave Card -->
+                            <div class="bg-gradient-to-r from-pastel-blue to-pastel-sky rounded-xl p-3 text-center">
+                                <div class="w-10 h-10 mx-auto mb-1 bg-white/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-calendar-minus text-blue-700"></i>
+                                </div>
+                                <p class="text-xl font-bold text-gray-800">${excused}</p>
+                                <p class="text-xs text-gray-700">ลา</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Attendance Rate Progress -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span>อัตราการเข้าเรียน</span>
+                                <span class="font-semibold">${attendanceRate.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-gradient-to-r from-pastel-green to-pastel-mint h-3 rounded-full transition-all duration-300" style="width: ${attendanceRate}%"></div>
+                            </div>
+                        </div>
                     `;
                 } else {
-                    classroomInfoDiv.innerHTML = '<p class="text-center py-8">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>';
+                    classroomInfoDiv.innerHTML = `
+                        <div class="flex items-center justify-center h-48">
+                            <div class="text-center">
+                                <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-school text-2xl text-pastel-purple"></i>
+                                </div>
+                                <p class="text-gray-600">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>
+                            </div>
+                        </div>
+                    `;
                 }
             }
 
@@ -692,9 +955,34 @@
             function closeModalAndLogout() {
                 closeModal();
                 redirectToLogin('Your session is no longer valid. Please login again.');
-            }
-
-            // Placeholder for functions that need to be created in Code.gs and protected with JWT
+            }            // Function to filter students based on search input
+            function filterStudents() {
+                const searchInput = document.getElementById('studentSearch');
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const studentCards = document.querySelectorAll('.student-card');
+                const noResultsElement = document.getElementById('noStudentsFound');
+                
+                let matchCount = 0;
+                
+                studentCards.forEach(card => {
+                    const studentName = card.querySelector('.font-semibold').textContent.toLowerCase();
+                    const studentId = card.id.replace('student-', '');
+                    
+                    if (searchTerm === '' || studentName.includes(searchTerm) || studentId.includes(searchTerm)) {
+                        card.classList.remove('hidden');
+                        matchCount++;
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+                
+                // Show/hide no results message
+                if (matchCount === 0 && searchTerm !== '') {
+                    noResultsElement.classList.remove('hidden');
+                } else {
+                    noResultsElement.classList.add('hidden');
+                }
+            }// Placeholder for functions that need to be created in Code.gs and protected with JWT
             // google.script.run.getClassrooms(currentToken);
             // google.script.run.getStudentsByClassroom(classroomId, currentToken);
 

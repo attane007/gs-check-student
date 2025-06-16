@@ -1144,21 +1144,21 @@ function getDashboardData(dateFromString, dateToString, authToken) {
       }      // Today's overall stats - use formatted date for comparison
       const isToday = recordDateFormatted === today;
       if (isToday) {
-        // Check for various present status formats
-        if (status === 'present' || status === 'มา') {
+        // Check for various present status formats - now using Thai status
+        if (status === 'เข้าแถว' || status === 'present' || status === 'มา') {
           stats.totalPresentToday++;
         } 
         // Check for late status
-        else if (status === 'late' || status === 'สาย') {
+        else if (status === 'มาสาย' || status === 'late' || status === 'สาย') {
           stats.totalLateToday++;
           stats.totalPresentToday++; // Count late as present for overall stats
         }
         // Check for excused status (ลา)
-        else if (status === 'excused' || status === 'ลา') {
+        else if (status === 'ลา' || status === 'excused') {
           stats.totalExcusedToday++;
         }
         // Check for various absent status formats
-        else if (status === 'absent' || status === 'ขาด') {
+        else if (status === 'ไม่เข้าแถว' || status === 'absent' || status === 'ขาด') {
           stats.totalAbsentToday++;
         }
       }// Today's classroom stats
@@ -1174,26 +1174,26 @@ function getDashboardData(dateFromString, dateToString, authToken) {
           };
           todayClassroomStatsMap.set(classroomName, classroomTodayStat);
         }
-        
-        // Check for various status formats with separated counts
-        if (status === 'present' || status === 'มา') {
+          // Check for various status formats with separated counts - now using Thai status
+        if (status === 'เข้าแถว' || status === 'present' || status === 'มา') {
           classroomTodayStat.present++;
         } 
-        else if (status === 'late' || status === 'สาย') {
+        else if (status === 'มาสาย' || status === 'late' || status === 'สาย') {
           classroomTodayStat.late++;
         }
-        else if (status === 'excused' || status === 'ลา') {
+        else if (status === 'ลา' || status === 'excused') {
           classroomTodayStat.excused++;
         }
-        else if (status === 'absent' || status === 'ขาด') {
+        else if (status === 'ไม่เข้าแถว' || status === 'absent' || status === 'ขาด') {
           classroomTodayStat.absent++;
         }
         
         // Count in total if any recognized status
-        if (status === 'present' || status === 'late' || status === 'excused' || status === 'absent' || 
-            status === 'มา' || status === 'สาย' || status === 'ลา' || status === 'ขาด') {
+        if (status === 'เข้าแถว' || status === 'มาสาย' || status === 'ลา' || status === 'ไม่เข้าแถว' || 
+            status === 'present' || status === 'late' || status === 'excused' || status === 'absent' || 
+            status === 'มา' || status === 'สาย' || status === 'ขาด') {
           classroomTodayStat.total++;
-        }      }
+        }}
       
       // Date range filtering for overall classroom breakdown and top attendees
       let isInDateRange = true;
@@ -1213,9 +1213,8 @@ function getDashboardData(dateFromString, dateToString, authToken) {
           };
           overallClassroomStatsMap.set(classroomName, classroomOverallStat);
         }
-        
-        // Check for various status formats with separated counts
-        if (status === 'present' || status === 'มา') {
+          // Check for various status formats with separated counts - now using Thai status
+        if (status === 'เข้าแถว' || status === 'present' || status === 'มา') {
           classroomOverallStat.present++;
           
           // Track top attendees for present statuses
@@ -1223,7 +1222,7 @@ function getDashboardData(dateFromString, dateToString, authToken) {
             studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
           }
         } 
-        else if (status === 'late' || status === 'สาย') {
+        else if (status === 'มาสาย' || status === 'late' || status === 'สาย') {
           classroomOverallStat.late++;
           
           // Track top attendees for late statuses too
@@ -1231,16 +1230,16 @@ function getDashboardData(dateFromString, dateToString, authToken) {
             studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
           }
         }
-        else if (status === 'excused' || status === 'ลา') {
+        else if (status === 'ลา' || status === 'excused') {
           classroomOverallStat.excused++;
         }
-        else if (status === 'absent' || status === 'ขาด') {
+        else if (status === 'ไม่เข้าแถว' || status === 'absent' || status === 'ขาด') {
           classroomOverallStat.absent++;
         }
-        
-        // Count in total if any recognized status
-        if (status === 'present' || status === 'late' || status === 'excused' || status === 'absent' || 
-            status === 'มา' || status === 'สาย' || status === 'ลา' || status === 'ขาด') {
+          // Count in total if any recognized status
+        if (status === 'เข้าแถว' || status === 'มาสาย' || status === 'ลา' || status === 'ไม่เข้าแถว' || 
+            status === 'present' || status === 'late' || status === 'excused' || status === 'absent' || 
+            status === 'มา' || status === 'สาย' || status === 'ขาด') {
           classroomOverallStat.total++;
         }
       }
@@ -1393,25 +1392,26 @@ function getDailyAttendanceStats(days, authToken) {
       // Debug log for each status found
       if (status) {
         Logger.log(`Processing record: Date=${recordDateStr}, Status='${status}', Has date in map: ${dailyStatsMap.has(recordDateStr)}`);
-      }if (recordDateStr && dailyStatsMap.has(recordDateStr)) {
+      }      if (recordDateStr && dailyStatsMap.has(recordDateStr)) {
         let stat = dailyStatsMap.get(recordDateStr);
-          // Check for various present status formats
-        if (status === 'present' || status === 'มา') {
+        
+        // Check for various present status formats - now using Thai status
+        if (status === 'เข้าแถว' || status === 'present' || status === 'มา') {
           stat.present++;
           Logger.log(`✓ Incremented PRESENT for ${recordDateStr}: now ${stat.present}`);
         } 
         // Check for late status
-        else if (status === 'late' || status === 'สาย') {
+        else if (status === 'มาสาย' || status === 'late' || status === 'สาย') {
           stat.late++;
           Logger.log(`✓ Incremented LATE for ${recordDateStr}: now ${stat.late}`);
         }
         // Check for excused status (ลา) - separate from absent
-        else if (status === 'excused' || status === 'ลา') {
+        else if (status === 'ลา' || status === 'excused') {
           stat.excused++;
           Logger.log(`✓ Incremented EXCUSED for ${recordDateStr}: now ${stat.excused}`);
         }
         // Check for absent status (not including excused)
-        else if (status === 'absent' || status === 'ขาด') {
+        else if (status === 'ไม่เข้าแถว' || status === 'absent' || status === 'ขาด') {
           stat.absent++;
           Logger.log(`✓ Incremented ABSENT for ${recordDateStr}: now ${stat.absent}`);
         }

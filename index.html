@@ -724,11 +724,8 @@
                     }
                 });
                 updateStats(students, attendanceStatus);
-            }
-              function markStudent(studentId, status, isInitialSet = false) { // Added isInitialSet parameter
-                console.log(`markStudent called: studentId=${studentId}, status=${status}, isInitialSet=${isInitialSet}`);
+            }            function markStudent(studentId, status, isInitialSet = false) { // Added isInitialSet parameter
                 attendanceStatus[studentId] = status;
-                console.log('Updated attendanceStatus:', attendanceStatus);
                 
                 const card = document.getElementById(`student-${studentId}`);
                 const buttons = card.querySelectorAll('.action-btn');
@@ -804,9 +801,6 @@
                                 </div>                            `;
                             
                             // Update stats after successful attendance recording
-                            console.log('Attendance recorded successfully, updating stats with current data:');
-                            console.log('currentStudents:', currentStudents);
-                            console.log('attendanceStatus before updateStats:', attendanceStatus);
                             updateStats(currentStudents, attendanceStatus);
                         } else {
                             resultDisplay.innerHTML = `
@@ -847,9 +841,7 @@
                         setLoading(false);
                         handleAuthError('Error recording attendance: ' + error.message);                    })
                     .recordAttendance(studentId, status, currentToken);
-                    
-                console.log(`Calling recordAttendance with: studentId=${studentId}, status=${status}`);
-            }            function markAllPresent() {
+            }function markAllPresent() {
                 setLoading(true, 'กำลังบันทึกเข้าแถวทั้งหมด...');
                 
                 // Prepare bulk data
@@ -945,22 +937,16 @@
                         handleAuthError('Error recording bulk attendance: ' + error.message);
                     })
                     .recordBulkAttendance(studentStatusMap, currentToken);
-            }function updateStats(students, statuses) {
-                console.log('updateStats called with students:', students.length);
-                console.log('updateStats attendanceStatus object:', statuses);
-                
+            }            function updateStats(students, statuses) {
                 let present = 0, absent = 0, late = 0, excused = 0, unmarked = 0;
                 students.forEach(student => {
                     const status = statuses[student.id];
-                    console.log(`Student ${student.id} (${student.firstName} ${student.lastName}): status = ${status}`);
                     if (status === 'เข้าแถว') present++;
                     else if (status === 'ไม่เข้าแถว') absent++;
                     else if (status === 'มาสาย') late++;
                     else if (status === 'ลา') excused++;
                     else unmarked++;
                 });
-                
-                console.log(`Stats calculated: present=${present}, absent=${absent}, late=${late}, excused=${excused}, unmarked=${unmarked}`);
 
                 document.getElementById('statsPresent').textContent = present + late; // Count late as present for this stat
                 document.getElementById('statsAbsent').textContent = absent;

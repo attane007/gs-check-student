@@ -3,15 +3,147 @@
  * เชื่อมต่อกับ Google Sheets เพื่อจัดเก็บข้อมูลการเข้าเรียน
  */
 
-// ใช้ Spreadsheet ที่ผูกกับ Script นี้
+// =====================
+// CONFIGURATION & CONSTANTS
+// =====================
 const STUDENTS_SHEET_NAME = 'Students';
 const CLASSROOMS_SHEET_NAME = 'Classrooms';
 const ATTENDANCE_SHEET_NAME = 'Attendance';
-const USERS_SHEET_NAME = 'Users'; // New sheet for users
+const USERS_SHEET_NAME = 'Users';
+const JWT_SECRET_KEY_PROPERTY = 'asdasdlglkbmkbtokb;ltmblmdfdfb';
+const JWT_EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-/**
- * ฟังก์ชันเริ่มต้นสำหรับสร้าง Sheets หากยังไม่มี
- */
+// =====================
+// UTILITY FUNCTIONS
+// =====================
+function generateSalt() {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+function customBytesToHex(bytes) {
+  if (!bytes) return null;
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    let byte = bytes[i] & 0xFF;
+    let hexByte = byte.toString(16);
+    if (hexByte.length < 2) hexByte = '0' + hexByte;
+    hex += hexByte;
+  }
+  return hex;
+}
+function hashPassword(password, salt) {
+  Logger.log(`HASH_PASSWORD: Entered. Password provided: ${password ? 'Yes' : 'No'}, Salt provided: ${salt ? 'Yes' : 'No'}`);
+  if (!password || !salt) {
+    Logger.log('HASH_PASSWORD: Password or salt is missing.');
+    return null;
+  }
+  const saltedPassword = password + salt;
+  Logger.log(`HASH_PASSWORD: Salted password created.`);
+  try {
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, saltedPassword, Utilities.Charset.UTF_8);
+    Logger.log(`HASH_PASSWORD: Digest computed. Length: ${digest ? digest.length : 'null'}`);
+    const hex = customBytesToHex(digest);
+    if (hex) {
+      Logger.log('HASH_PASSWORD: customBytesToHex conversion successful.');
+      return hex;
+    } else {
+      Logger.log('HASH_PASSWORD: CRITICAL - customBytesToHex failed. Returning null.');
+      throw new Error('customBytesToHex failed to convert digest.');
+    }
+  } catch (error) {
+    Logger.log(`HASH_PASSWORD: ERROR during hashing process - ${error.toString()} Stack: ${error.stack}`);
+    throw error;
+  }
+}
+function base64UrlEncode(input) {
+  let base64;
+  if (typeof input === 'string') {
+    base64 = Utilities.base64Encode(input, Utilities.Charset.UTF_8);
+  } else if (Array.isArray(input)) {
+    base64 = Utilities.base64EncodeWebSafe(input);
+    base64 = base64.replace(/=+$/, '');
+    return base64;
+  } else {
+    throw new Error('base64UrlEncode: Unsupported input type');
+  }
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+function base64UrlDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  try {
+    const decoded = Utilities.base64Decode(str);
+    return Utilities.newBlob(decoded).getDataAsString();
+  } catch (e) {
+    Logger.log('BASE64_URL_DECODE_ERROR: ' + e.message);
+    throw new Error('Failed to decode base64url: ' + e.message);
+  }
+}
+function getJwtSecret() {
+  let secret = PropertiesService.getScriptProperties().getProperty(JWT_SECRET_KEY_PROPERTY);
+  if (!secret) {
+    secret = Utilities.getUuid() + Utilities.getUuid();
+    PropertiesService.getScriptProperties().setProperty(JWT_SECRET_KEY_PROPERTY, secret);
+    Logger.log('JWT_SECRET_KEY generated and stored.');
+  }
+  return secret;
+}
+function generateJwt(userInfo) {
+  const secret = getJwtSecret();
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    user: { username: userInfo.username, role: userInfo.role, fullName: userInfo.fullName },
+    iat: now,
+    exp: now + JWT_EXPIRATION_SECONDS,
+    iss: ScriptApp.getService().getUrl()
+  };
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signatureInput = encodedHeader + '.' + encodedPayload;
+  const signatureBytes = Utilities.computeHmacSha256Signature(signatureInput, secret, Utilities.Charset.UTF_8);
+  const encodedSignature = base64UrlEncode(signatureBytes);
+  return encodedHeader + '.' + encodedPayload + '.' + encodedSignature;
+}
+function verifyJwt(token) {
+  if (!token) {
+    Logger.log('VERIFY_JWT: Token is null or undefined.');
+    return { valid: false, error: 'Token not provided' };
+  }
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    Logger.log('VERIFY_JWT: Token does not have 3 parts.');
+    return { valid: false, error: 'Invalid token structure' };
+  }
+  const encodedHeader = parts[0];
+  const encodedPayload = parts[1];
+  const encodedSignature = parts[2];
+  const secret = getJwtSecret();
+  const signatureInput = encodedHeader + '.' + encodedPayload;
+  const expectedSignatureBytes = Utilities.computeHmacSha256Signature(signatureInput, secret, Utilities.Charset.UTF_8);
+  const expectedEncodedSignature = base64UrlEncode(expectedSignatureBytes);
+  if (expectedEncodedSignature !== encodedSignature) {
+    Logger.log('VERIFY_JWT: Signature mismatch.');
+    return { valid: false, error: 'Invalid signature' };
+  }
+  let payload;
+  try {
+    payload = JSON.parse(base64UrlDecode(encodedPayload));
+  } catch (e) {
+    Logger.log('VERIFY_JWT: Error decoding payload: ' + e.message);
+    return { valid: false, error: 'Invalid payload encoding' };
+  }
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp && now > payload.exp) {
+    Logger.log('VERIFY_JWT: Token expired at ' + new Date(payload.exp * 1000) + '. Current time: ' + new Date(now * 1000));
+    return { valid: false, error: 'Token expired', expired: true };
+  }
+  Logger.log('VERIFY_JWT: Token verified successfully for user: ' + payload.user.username);
+  return { valid: true, payload: payload };
+}
+
+// =====================
+// INITIALIZATION FUNCTIONS
+// =====================
 function initializeSheets() {
   Logger.log('ENTERING initializeSheets'); 
   try {
@@ -234,322 +366,9 @@ function addInitialAdminUser(sheet, defaultPassword) {
   }
 }
 
-// --- User and Auth Utilities ---
-function generateSalt() {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
-
-// Custom function to convert byte array to hex string
-function customBytesToHex(bytes) {
-  if (!bytes) return null;
-  let hex = '';
-  for (let i = 0; i < bytes.length; i++) {
-    let byte = bytes[i] & 0xFF; // Ensure byte is positive
-    let hexByte = byte.toString(16);
-    if (hexByte.length < 2) {
-      hexByte = '0' + hexByte;
-    }
-    hex += hexByte;
-  }
-  return hex;
-}
-
-function hashPassword(password, salt) {
-  Logger.log(`HASH_PASSWORD: Entered. Password provided: ${password ? 'Yes' : 'No'}, Salt provided: ${salt ? 'Yes' : 'No'}`);
-  if (!password || !salt) {
-    Logger.log('HASH_PASSWORD: Password or salt is missing.');
-    return null;
-  }
-  const saltedPassword = password + salt;
-  Logger.log(`HASH_PASSWORD: Salted password created.`);
-
-  try {
-    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, saltedPassword, Utilities.Charset.UTF_8);
-    Logger.log(`HASH_PASSWORD: Digest computed. Length: ${digest ? digest.length : 'null'}`);
-    
-    // Use the custom bytesToHex function as a workaround
-    const hex = customBytesToHex(digest);
-    if (hex) {
-        Logger.log('HASH_PASSWORD: customBytesToHex conversion successful.');
-        return hex;
-    } else {
-        Logger.log('HASH_PASSWORD: CRITICAL - customBytesToHex failed. Returning null.');
-        throw new Error('customBytesToHex failed to convert digest.');
-    }  } catch (error) {
-    Logger.log(`HASH_PASSWORD: ERROR during hashing process - ${error.toString()} Stack: ${error.stack}`);
-    throw error; 
-  }
-}
-
-// Simple test function to isolate Utilities object behavior
-function testUtilitiesObject() {
-  Logger.log('TEST_UTILITIES: Starting test.');
-  try {
-    Logger.log(`TEST_UTILITIES: typeof Utilities = ${typeof Utilities}`);
-    if (Utilities) {
-      Logger.log(`TEST_UTILITIES: typeof Utilities.bytesToHex (direct access) = ${typeof Utilities.bytesToHex}`);
-      const testBytes = [1, 2, 3, 4, 5, 10, 15, 16, 255];
-      if (typeof Utilities.bytesToHex === 'function') {
-        Logger.log(`TEST_UTILITIES: Utilities.bytesToHex IS a function. Test conversion: ${Utilities.bytesToHex(testBytes)}`);
-      } else {
-        Logger.log('TEST_UTILITIES: Utilities.bytesToHex is NOT a function.');
-      }
-    } else {
-      Logger.log('TEST_UTILITIES: Global Utilities object is not defined.');
-    }
-  } catch (e) {
-    Logger.log(`TEST_UTILITIES: Error during test: ${e.message} Stack: ${e.stack}`);
-  }
-  Logger.log('TEST_UTILITIES: Test finished.');
-}
-
-// --- JWT Configuration ---
-const JWT_SECRET_KEY_PROPERTY = 'asdasdlglkbmkbtokb;ltmblmdfdfb';
-const JWT_EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days (30 days × 24 hours × 60 minutes × 60 seconds)
-
-function getJwtSecret() {
-  let secret = PropertiesService.getScriptProperties().getProperty(JWT_SECRET_KEY_PROPERTY);
-  if (!secret) {
-    secret = Utilities.getUuid() + Utilities.getUuid(); // Generate a strong random secret
-    PropertiesService.getScriptProperties().setProperty(JWT_SECRET_KEY_PROPERTY, secret);
-    Logger.log('JWT_SECRET_KEY generated and stored.');
-  }
-  return secret;
-}
-
-// --- Base64 URL Encoding/Decoding Helpers ---
-function base64UrlEncode(input) {
-  let base64;
-  if (typeof input === 'string') {
-    // Input is a string, encode it
-    base64 = Utilities.base64Encode(input, Utilities.Charset.UTF_8);
-  } else if (Array.isArray(input)) {
-    // Input is a byte array (from computeHmacSha256Signature, etc.)
-    base64 = Utilities.base64EncodeWebSafe(input);
-    // Remove padding '=' since we'll add it back in decode if needed
-    base64 = base64.replace(/=+$/, '');
-    return base64;  // Already web-safe
-  } else {
-    // Handle other cases (like Blob) if needed
-    throw new Error('base64UrlEncode: Unsupported input type');
-  }
-  // Replace standard base64 chars with URL-safe versions
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-function base64UrlDecode(str) {
-  // Restore base64 standard characters
-  str = str.replace(/-/g, '+').replace(/_/g, '/');
-  // Add padding if needed
-  while (str.length % 4) {
-    str += '=';
-  }
-  try {
-    // Decode the string
-    const decoded = Utilities.base64Decode(str);
-    return Utilities.newBlob(decoded).getDataAsString();
-  } catch (e) {
-    Logger.log('BASE64_URL_DECODE_ERROR: ' + e.message);
-    throw new Error('Failed to decode base64url: ' + e.message);
-  }
-}
-
-// --- JWT Generation ---
-function generateJwt(userInfo) {
-  const secret = getJwtSecret();
-  const header = {
-    alg: 'HS256',
-    typ: 'JWT'
-  };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    user: { // Only include necessary, non-sensitive user info
-      username: userInfo.username,
-      role: userInfo.role,
-      fullName: userInfo.fullName
-    },
-    iat: now, // Issued at
-    exp: now + JWT_EXPIRATION_SECONDS, // Expiration time
-    iss: ScriptApp.getService().getUrl() // Issuer (this script)
-  };
-
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const signatureInput = encodedHeader + '.' + encodedPayload;
-  const signatureBytes = Utilities.computeHmacSha256Signature(signatureInput, secret, Utilities.Charset.UTF_8);
-  const encodedSignature = base64UrlEncode(signatureBytes);
-
-  return encodedHeader + '.' + encodedPayload + '.' + encodedSignature;
-}
-
-// --- JWT Verification ---
-function verifyJwt(token) {
-  if (!token) {
-    Logger.log('VERIFY_JWT: Token is null or undefined.');
-    return { valid: false, error: 'Token not provided' };
-  }
-  const parts = token.split('.');
-  if (parts.length !== 3) {
-    Logger.log('VERIFY_JWT: Token does not have 3 parts.');
-    return { valid: false, error: 'Invalid token structure' };
-  }
-
-  const encodedHeader = parts[0];
-  const encodedPayload = parts[1];
-  const encodedSignature = parts[2];
-  const secret = getJwtSecret();
-
-  const signatureInput = encodedHeader + '.' + encodedPayload;
-  const expectedSignatureBytes = Utilities.computeHmacSha256Signature(signatureInput, secret, Utilities.Charset.UTF_8);
-  const expectedEncodedSignature = base64UrlEncode(expectedSignatureBytes);
-
-  if (expectedEncodedSignature !== encodedSignature) {
-    Logger.log('VERIFY_JWT: Signature mismatch.');
-    return { valid: false, error: 'Invalid signature' };
-  }
-
-  let payload;
-  try {
-    payload = JSON.parse(base64UrlDecode(encodedPayload));
-  } catch (e) {
-    Logger.log('VERIFY_JWT: Error decoding payload: ' + e.message);
-    return { valid: false, error: 'Invalid payload encoding' };
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && now > payload.exp) {
-    Logger.log('VERIFY_JWT: Token expired at ' + new Date(payload.exp * 1000) + '. Current time: ' + new Date(now * 1000));
-    return { valid: false, error: 'Token expired', expired: true };
-  }
-  
-  // Optional: Check issuer (iss) if needed
-  // if (payload.iss !== ScriptApp.getService().getUrl()) {
-  //   Logger.log('VERIFY_JWT: Issuer mismatch.');
-  //   return { valid: false, error: 'Invalid issuer' };
-  // }
-
-  Logger.log('VERIFY_JWT: Token verified successfully for user: ' + payload.user.username);
-  return { valid: true, payload: payload };
-}
-
-// Function to verify user credentials against the Users sheet
-function verifyUser(username, password) {
-  try {
-    if (!username || !password) {
-      Logger.log("VERIFY_USER: Username or password missing");
-      return null;
-    }
-    
-    Logger.log(`VERIFY_USER: Attempting to verify user: ${username}`);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const usersSheet = ss.getSheetByName(USERS_SHEET_NAME);
-    
-    if (!usersSheet) {
-      Logger.log("VERIFY_USER: Users sheet not found");
-      return null;
-    }
-    
-    const data = usersSheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      Logger.log("VERIFY_USER: No user data found (only header or empty sheet)");
-      return null;
-    }
-    
-    // Get header row to find column indexes
-    const headers = data[0].map(header => String(header).toLowerCase().trim());
-    const usernameColIndex = headers.indexOf("username");
-    const passwordHashColIndex = headers.indexOf("passwordhash");
-    const saltColIndex = headers.indexOf("salt");
-    const roleColIndex = headers.indexOf("role");
-    const fullNameColIndex = headers.indexOf("fullname");
-    
-    if (usernameColIndex === -1 || passwordHashColIndex === -1 || saltColIndex === -1) {
-      Logger.log("VERIFY_USER: Required column headers not found in Users sheet");
-      return null;
-    }
-    
-    // Look for matching username
-    let userRow = null;
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][usernameColIndex] && data[i][usernameColIndex].toString().toLowerCase() === username.toLowerCase()) {
-        userRow = data[i];
-        break;
-      }
-    }
-    
-    if (!userRow) {
-      Logger.log(`VERIFY_USER: User ${username} not found`);
-      return null;
-    }
-    
-    const storedHash = userRow[passwordHashColIndex];
-    const salt = userRow[saltColIndex];
-    
-    if (!storedHash || !salt) {
-      Logger.log(`VERIFY_USER: Stored hash or salt missing for user ${username}`);
-      return null;
-    }
-    
-    // Hash the provided password with the stored salt
-    const providedPasswordHash = hashPassword(password, salt);
-    
-    if (providedPasswordHash === storedHash) {
-      Logger.log(`VERIFY_USER: Authentication successful for ${username}`);
-      
-      // Update last login timestamp
-      const lastLoginColIndex = headers.indexOf("lastlogin");
-      if (lastLoginColIndex !== -1) {
-        usersSheet.getRange(data.indexOf(userRow) + 1, lastLoginColIndex + 1).setValue(new Date());
-      }
-      
-      // Return user info for JWT
-      return {
-        username: userRow[usernameColIndex],
-        role: roleColIndex !== -1 ? userRow[roleColIndex] : "user", // Default to "user" if role not found
-        fullName: fullNameColIndex !== -1 ? userRow[fullNameColIndex] : username // Default to username if fullName not found
-      };
-    } else {
-      Logger.log(`VERIFY_USER: Password verification failed for ${username}`);
-      return null;
-    }
-  } catch (error) {
-    Logger.log(`VERIFY_USER ERROR: ${error.message} Stack: ${error.stack}`);
-    return null;
-  }
-}
-
-// New function to be called from login.html
-function loginUser(username, password) {
-  try {
-    Logger.log(`Attempting login for user: ${username}`);
-    const userInfo = verifyUser(username, password); // verifyUser still uses the Users sheet
-    if (userInfo) {
-      const token = generateJwt(userInfo);
-      Logger.log(`Login successful for ${username}. JWT generated.`);
-      // The client will receive this token and store it.
-      // Redirection will be handled by the client.
-      return { 
-        success: true, 
-        message: 'Login successful!', 
-        token: token, // Send JWT to client
-        user: { // Send basic user info for immediate use by client
-            username: userInfo.username,
-            role: userInfo.role,
-            fullName: userInfo.fullName
-        }
-      };
-    } else {
-      Logger.log(`Login failed for user: ${username}`);
-      return { success: false, message: 'Invalid username or password.' };
-    }
-  } catch (error) {
-    Logger.log(`Error during loginUser: ${error.message} Stack: ${error.stack}`);
-    console.error('Login error:', error);
-    return { success: false, message: 'An error occurred during login: ' + error.message };
-  }
-}
-
-// --- Web App Endpoints ---
+// =====================
+// MAIN LOGIC AND ENDPOINTS
+// =====================
 function doGet(e) {
   Logger.log('--- doGet STARTED --- Parameters: ' + JSON.stringify(e));
   
@@ -1728,5 +1547,199 @@ function getTodayAttendanceByClassroom(classroomId, authToken) {
   } catch (error) {
     Logger.log(`Error in getTodayAttendanceByClassroom: ${error.message}. Stack: ${error.stack}`);
     return { success: false, error: 'Error processing attendance data: ' + error.message, attendanceRecords: {} };
+  }
+}
+
+// Function to get detailed attendance list by status and classroom for today
+function getDetailedAttendanceByStatus(authToken) {
+  const verificationResult = verifyJwt(authToken);
+  if (!verificationResult.valid) {
+    return { success: false, error: 'Authentication failed: ' + verificationResult.error, expired: verificationResult.expired || false };
+  }
+  Logger.log(`User ${verificationResult.payload.user.username} requesting detailed attendance by status`);
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const attendanceSheet = ss.getSheetByName(ATTENDANCE_SHEET_NAME);
+    const studentSheet = ss.getSheetByName(STUDENTS_SHEET_NAME);
+    const classroomSheet = ss.getSheetByName(CLASSROOMS_SHEET_NAME);
+
+    if (!attendanceSheet || !studentSheet || !classroomSheet) {
+      return { success: false, error: 'One or more data sheets are missing.' };
+    }
+
+    // Get today's date
+    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+    // Get attendance data
+    const attendanceData = attendanceSheet.getDataRange().getValues();
+    const attendanceHeader = attendanceData.shift();
+
+    // Find column indices in attendance sheet
+    const dateColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'วันที่' || h.toString().trim().toLowerCase() === 'date'));
+    const studentIdColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'รหัสนักเรียน' || h.toString().trim().toLowerCase() === 'studentid'));
+    const statusColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'สถานะ' || h.toString().trim().toLowerCase() === 'status'));
+
+    // Get student data
+    const studentData = studentSheet.getDataRange().getValues();
+    const studentHeader = studentData.shift();
+
+    // Find column indices in student sheet
+    const studentIdStudentColIdx = studentHeader.findIndex(h => h && (h.toString().trim() === 'รหัสนักเรียน' || h.toString().trim().toLowerCase() === 'studentid'));
+    const firstNameColIdx = studentHeader.findIndex(h => h && (h.toString().trim() === 'ชื่อ' || h.toString().trim().toLowerCase() === 'firstname'));
+    const lastNameColIdx = studentHeader.findIndex(h => h && (h.toString().trim() === 'นามสกุล' || h.toString().trim().toLowerCase() === 'lastname'));
+    const classroomIdColIdx = studentHeader.findIndex(h => h && (
+      h.toString().trim() === 'ห้องเรียนID' || 
+      h.toString().trim() === 'ห้องเรียน' ||
+      h.toString().trim().toLowerCase() === 'classroomid' ||
+      h.toString().trim().toLowerCase() === 'classroom'
+    ));
+
+    // Get classroom data
+    const classroomData = classroomSheet.getDataRange().getValues();
+    const classroomHeader = classroomData.shift();
+    
+    // Create classroom name mapping
+    const classroomNameMap = new Map();
+    classroomData.forEach(row => {
+      classroomNameMap.set(row[0].toString().trim(), row[1]);
+    });
+
+    // Create student mapping
+    const studentMap = new Map();
+    studentData.forEach(row => {
+      if (row[studentIdStudentColIdx]) {
+        const studentId = row[studentIdStudentColIdx].toString().trim();
+        const classroomId = row[classroomIdColIdx] ? row[classroomIdColIdx].toString().trim() : '';
+        studentMap.set(studentId, {
+          id: studentId,
+          firstName: row[firstNameColIdx],
+          lastName: row[lastNameColIdx],
+          fullName: `${row[firstNameColIdx]} ${row[lastNameColIdx]}`,
+          classroomId: classroomId,
+          classroomName: classroomNameMap.get(classroomId) || 'ไม่ระบุห้องเรียน'
+        });
+      }
+    });
+
+    // Process attendance data for today
+    const attendanceByClassroom = new Map();
+
+    attendanceData.forEach(row => {
+      if (!row || row.length <= Math.max(dateColIdx, studentIdColIdx, statusColIdx)) return;
+
+      // Check if record is for today
+      let recordDateStr;
+      const dateValue = row[dateColIdx];
+      if (dateValue instanceof Date) {
+        recordDateStr = Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      } else {
+        try {
+          recordDateStr = Utilities.formatDate(new Date(dateValue), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        } catch (e) {
+          return;
+        }
+      }
+
+      if (recordDateStr === today) {
+        const studentId = row[studentIdColIdx] ? row[studentIdColIdx].toString().trim() : '';
+        const status = row[statusColIdx] ? row[statusColIdx].toString().toLowerCase().trim() : '';
+        
+        const student = studentMap.get(studentId);
+        if (student) {
+          const classroomName = student.classroomName;
+          
+          if (!attendanceByClassroom.has(classroomName)) {
+            attendanceByClassroom.set(classroomName, {
+              classroomName: classroomName,
+              present: [],
+              late: [],
+              absent: [],
+              excused: []
+            });
+          }
+
+          const classroomData = attendanceByClassroom.get(classroomName);
+          
+          // Add student to appropriate status list
+          const studentInfo = {
+            id: student.id,
+            name: student.fullName,
+            firstName: student.firstName,
+            lastName: student.lastName
+          };
+
+          if (status === 'present' || status === 'มา') {
+            classroomData.present.push(studentInfo);
+          } else if (status === 'late' || status === 'สาย') {
+            classroomData.late.push(studentInfo);
+          } else if (status === 'absent' || status === 'ขาด') {
+            classroomData.absent.push(studentInfo);
+          } else if (status === 'excused' || status === 'ลา') {
+            classroomData.excused.push(studentInfo);
+          }
+        }
+      }
+    });
+
+    // Add students who haven't been marked at all
+    studentMap.forEach((student, studentId) => {
+      // Check if this student has any attendance record today
+      const hasRecordToday = attendanceData.some(row => {
+        if (!row || row.length <= Math.max(dateColIdx, studentIdColIdx)) return false;
+        
+        let recordDateStr;
+        const dateValue = row[dateColIdx];
+        if (dateValue instanceof Date) {
+          recordDateStr = Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        } else {
+          try {
+            recordDateStr = Utilities.formatDate(new Date(dateValue), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+          } catch (e) {
+            return false;
+          }
+        }
+        
+        return recordDateStr === today && row[studentIdColIdx] && row[studentIdColIdx].toString().trim() === studentId;
+      });
+
+      if (!hasRecordToday) {
+        const classroomName = student.classroomName;
+        
+        if (!attendanceByClassroom.has(classroomName)) {
+          attendanceByClassroom.set(classroomName, {
+            classroomName: classroomName,
+            present: [],
+            late: [],
+            absent: [],
+            excused: []
+          });
+        }
+
+        // Add to unmarked list (we'll treat as absent for now, or could add separate unmarked category)
+        const classroomData = attendanceByClassroom.get(classroomName);
+        classroomData.absent.push({
+          id: student.id,
+          name: student.fullName,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          unmarked: true // Flag to indicate this student hasn't been marked yet
+        });
+      }
+    });
+
+    // Convert Map to Array for response
+    const result = Array.from(attendanceByClassroom.values());
+
+    Logger.log(`getDetailedAttendanceByStatus returning data for ${result.length} classrooms`);
+    return {
+      success: true,
+      date: today,
+      classroomsDetail: result
+    };
+
+  } catch (error) {
+    Logger.log('Error in getDetailedAttendanceByStatus: ' + error.message + ' Stack: ' + error.stack);
+    return { success: false, error: 'Error processing detailed attendance data: ' + error.message };
   }
 }

@@ -251,8 +251,7 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Daily Stats (Last 7 days) -->
+                  <!-- Daily Stats (Last 7 days) -->
                 <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-calendar-day text-pastel-purple mr-3"></i>
@@ -261,6 +260,28 @@
                     <div id="dailyStatsChartContainer" class="space-y-3">
                         <canvas id="dailyAttendanceChart" class="max-h-60"></canvas>
                         <p id="dailyStatsFallback" class="text-gray-600 text-center py-8 hidden">กำลังโหลดข้อมูล...</p>
+                    </div>
+                </div>
+                
+                <!-- Detailed Attendance List -->
+                <div class="glass-effect rounded-2xl p-8 lg:col-span-2 simple-hover shadow-lg">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-list-ul text-pastel-purple mr-3"></i>
+                            รายชื่อนักเรียนวันนี้
+                        </h2>                        <button onclick="loadDetailedAttendanceList()" 
+                            class="bg-gradient-to-r from-pastel-green to-pastel-mint text-green-800 hover:text-green-900 font-semibold px-4 py-2 rounded-xl hover:shadow-lg transition-all duration-200 shadow-md flex items-center transform hover:scale-105 border border-green-200">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            รีเฟรช
+                        </button>
+                    </div>
+                    <div id="detailedAttendanceContainer" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        <div class="flex flex-col items-center justify-center h-40 bg-white/60 rounded-xl p-6 border border-white/50 shadow-sm">
+                            <div class="w-20 h-20 mx-auto mb-3 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center shadow-md">
+                                <i class="fas fa-users text-2xl text-white"></i>
+                            </div>
+                            <p class="text-gray-700 font-medium">กำลังโหลดรายชื่อนักเรียน...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -378,10 +399,10 @@
             document.getElementById('dateTo').value = formatDateForInput(today);
             
             updateUserInfoDisplay();
-            setupLogoutButton();
-            setupNavigation();
+            setupLogoutButton();            setupNavigation();
             loadOverallDashboardDataWithToken(); // Initial data load for dashboard
             loadDailyStatsChartData();
+            loadDetailedAttendanceList(); // Load detailed attendance list
             updateDateTime();
             setInterval(updateDateTime, 1000);
         }
@@ -872,7 +893,7 @@
                     </div>
                 `;
             }
-        }function loadDailyStatsChartData() {
+        }        function loadDailyStatsChartData() {
             setLoadingState(true, 'Loading daily chart...');
             console.log('Requesting daily stats with token:', currentToken ? 'Token exists' : 'No token!');
             
@@ -1114,6 +1135,169 @@
         // Assumed new Code.gs functions:
         // google.script.run.getDashboardData(dateFrom, dateTo, currentToken);
         // google.script.run.getDailyAttendanceStats(days, currentToken);
+        
+        // Function to load detailed attendance list by status
+        function loadDetailedAttendanceList() {
+            setLoadingState(true, 'Loading detailed attendance list...');
+            console.log('Requesting detailed attendance list with token:', currentToken ? 'Token exists' : 'No token!');
+            
+            if (!currentToken) {
+                setLoadingState(false);
+                handleAuthError('No authentication token found');
+                return;
+            }
+            
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    setLoadingState(false);
+                    console.log('Detailed attendance response:', response);
+                    if (response.success) {
+                        updateDetailedAttendanceUI(response.classroomsDetail, response.date);
+                    } else {
+                        if (response.expired) {
+                            handleAuthError(response.error || 'Token expired', true);
+                        } else {
+                            showErrorModal('Failed to load detailed attendance: ' + (response.error || 'Unknown error'));
+                        }
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    setLoadingState(false);
+                    console.error('Error loading detailed attendance:', error);
+                    showErrorModal('Error loading detailed attendance: ' + error.message);
+                })
+                .getDetailedAttendanceByStatus(currentToken);
+        }
+        
+        function updateDetailedAttendanceUI(classroomsDetail, date) {
+            const container = document.getElementById('detailedAttendanceContainer');
+            container.innerHTML = ''; // Clear
+            
+            console.log('Updating detailed attendance UI with:', classroomsDetail);
+            
+            if (!classroomsDetail || classroomsDetail.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40 bg-white/60 rounded-xl p-6 border border-white/50 shadow-sm">
+                        <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-2xl text-pastel-purple"></i>
+                        </div>
+                        <p class="text-gray-600">ยังไม่มีข้อมูลการเข้าแถววันนี้</p>
+                        <p class="text-xs text-gray-500 mt-1">วันที่: ${date || 'ไม่ระบุ'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Add date header
+            const dateHeader = document.createElement('div');
+            dateHeader.className = 'bg-gradient-to-r from-pastel-blue to-pastel-purple text-white rounded-xl p-4 mb-4 text-center';
+            dateHeader.innerHTML = `
+                <h3 class="text-lg font-bold">รายชื่อนักเรียนวันที่ ${new Date(date).toLocaleDateString('th-TH', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })}</h3>
+            `;
+            container.appendChild(dateHeader);
+            
+            classroomsDetail.forEach(classroom => {
+                const classroomDiv = document.createElement('div');
+                classroomDiv.className = 'bg-white/80 rounded-xl p-4 border border-white/50 shadow-sm mb-4';
+                
+                const totalStudents = classroom.present.length + classroom.late.length + classroom.absent.length + classroom.excused.length;
+                const attendingStudents = classroom.present.length + classroom.late.length;
+                const attendanceRate = totalStudents > 0 ? ((attendingStudents / totalStudents) * 100).toFixed(1) : 0;
+                
+                classroomDiv.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-door-open text-pastel-purple mr-2"></i>
+                            ${classroom.classroomName}
+                        </h4>
+                        <div class="text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full">
+                            เข้าแถว: ${attendingStudents}/${totalStudents} (${attendanceRate}%)
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Present Students -->
+                        <div class="bg-gradient-to-br from-pastel-green to-pastel-mint rounded-lg p-3">
+                            <h5 class="font-semibold text-green-800 mb-2 flex items-center">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                เข้าแถว (${classroom.present.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.present.length > 0 ? 
+                                    classroom.present.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Late Students -->
+                        <div class="bg-gradient-to-br from-pastel-yellow to-pastel-peach rounded-lg p-3">
+                            <h5 class="font-semibold text-yellow-800 mb-2 flex items-center">
+                                <i class="fas fa-clock mr-2"></i>
+                                มาสาย (${classroom.late.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.late.length > 0 ? 
+                                    classroom.late.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Absent Students -->
+                        <div class="bg-gradient-to-br from-pastel-coral to-pastel-pink rounded-lg p-3">
+                            <h5 class="font-semibold text-red-800 mb-2 flex items-center">
+                                <i class="fas fa-times-circle mr-2"></i>
+                                ขาด (${classroom.absent.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.absent.length > 0 ? 
+                                    classroom.absent.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1 ${student.unmarked ? 'border-l-2 border-orange-400' : ''}">
+                                            ${student.name}
+                                            ${student.unmarked ? '<span class="text-xs text-orange-600 ml-1">(ยังไม่บันทึก)</span>' : ''}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Excused Students -->
+                        <div class="bg-gradient-to-br from-pastel-blue to-pastel-sky rounded-lg p-3">
+                            <h5 class="font-semibold text-blue-800 mb-2 flex items-center">
+                                <i class="fas fa-calendar-minus mr-2"></i>
+                                ลา (${classroom.excused.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.excused.length > 0 ? 
+                                    classroom.excused.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(classroomDiv);
+            });
+        }
     </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - ระบบเช็คชื่อนักเรียน</title>
+    <title>Dashboard - ระบบเช็คชื่อการเข้าแถวตอนเช้า</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -73,7 +73,7 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="text-right mr-4">
-                        <p class="text-sm text-gray-600">นักเรียนที่เข้าเรียนวันนี้</p>
+                        <p class="text-sm text-gray-600">นักเรียนที่เข้าแถววันนี้</p>
                         <p class="text-2xl font-bold text-pastel-purple" id="dashTotalPresent">0</p>
                     </div>
                     <a href="#" 
@@ -117,7 +117,7 @@
                 <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-chart-pie text-pastel-purple mr-3"></i>
-                        ภาพรวมการเข้าเรียนวันนี้
+                        ภาพรวมการเข้าแถววันนี้
                     </h2>
                       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                         <!-- Present Card -->
@@ -128,7 +128,7 @@
                                 <i class="fas fa-user-check text-green-700 text-2xl"></i>
                             </div>
                             <p class="text-3xl font-bold text-gray-800" id="dashPresentCount">0</p>
-                            <p class="text-sm font-medium text-gray-800 mt-1">มาเรียน</p>
+                            <p class="text-sm font-medium text-gray-800 mt-1">เข้าแถว</p>
                         </div>
                         
                         <!-- Absent Card -->
@@ -139,7 +139,7 @@
                                 <i class="fas fa-user-times text-red-700 text-2xl"></i>
                             </div>
                             <p class="text-3xl font-bold text-gray-800" id="dashTotalAbsent">0</p>
-                            <p class="text-sm font-medium text-gray-800 mt-1">ขาดเรียน</p>
+                            <p class="text-sm font-medium text-gray-800 mt-1">ไม่เข้าแถว</p>
                         </div>
                           <!-- Late Card -->
                         <div class="bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-xl p-4 text-center shadow-lg transform transition-all duration-300 hover:scale-105 border border-white/50 relative overflow-hidden">
@@ -168,7 +168,7 @@
                                 <div class="w-8 h-8 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center mr-2 shadow-sm">
                                     <i class="fas fa-percentage text-white text-xs"></i>
                                 </div>
-                                <span class="font-medium text-gray-700">อัตราการเข้าเรียน</span>
+                                <span class="font-medium text-gray-700">อัตราการเข้าแถว</span>
                             </div>
                             <span id="dashAttendanceRate" class="text-xl font-bold text-pastel-purple">0%</span>
                         </div>
@@ -240,7 +240,7 @@
                 <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-trophy text-pastel-purple mr-3"></i>
-                        นักเรียนที่มาเรียนสม่ำเสมอ
+                        นักเรียนที่เข้าแถวสม่ำเสมอ
                     </h2>
                     <div id="topOverallAttendees" class="space-y-3 max-h-60 overflow-y-auto pr-2">
                         <div class="flex flex-col items-center justify-center h-40">
@@ -470,25 +470,36 @@
             }
               console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
         }
-        
-        function loadOverallDashboardDataWithToken() {
+          function loadOverallDashboardDataWithToken() {
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
             
             setLoadingState(true, 'Loading dashboard data...');
             console.log('Requesting dashboard data with token:', currentToken ? 'Token exists' : 'No token!');
+            console.log('Date range for dashboard data:', { from: dateFrom, to: dateTo });
             
             google.script.run
                 .withSuccessHandler(function(response) {
                     setLoadingState(false);
                     console.log('Dashboard data response:', response);
-                    
-                    if (response.success) {
+                              if (response.success) {
                         if (!response.stats) {
                             console.error('Dashboard data response is missing stats object');
                             showErrorModal('Dashboard data is incomplete. Please try again.');
                             return;
                         }
+                        
+                        // Debug log to see exactly what values we're getting
+                        console.log('Dashboard attendance stats:', {
+                            totalPresent: response.stats.totalPresentToday,
+                            totalLate: response.stats.totalLateToday,
+                            totalExcused: response.stats.totalExcusedToday,
+                            totalAbsent: response.stats.totalAbsentToday,
+                            total: (response.stats.totalPresentToday || 0) + 
+                                  (response.stats.totalLateToday || 0) + 
+                                  (response.stats.totalExcusedToday || 0) + 
+                                  (response.stats.totalAbsentToday || 0)
+                        });
                         
                         updateDashboardUI(response.stats);
                         
@@ -516,10 +527,14 @@
         }
         
         function updateDashboardUI(stats) {
-            if (!stats) return;
-            console.log('Updating dashboard UI with stats:', stats);
-            
-            // Update dashboard header count            document.getElementById('dashTotalPresent').textContent = stats.totalPresentToday || 0;
+            if (!stats) return;            console.log('Updating dashboard UI with stats:', stats);
+              // Update dashboard header count - the dashboard already includes late students in totalPresentToday count
+            // We should NOT add them again to avoid double-counting
+            const totalAttendingToday = stats.totalPresentToday || 0; // totalPresentToday already includes late students
+            console.log('Total attending today:', totalAttendingToday, 
+                '(Present:', stats.totalPresentToday, '+ Late:', stats.totalLateToday, 
+                '- Note: Present already includes Late in backend calculation)');
+            document.getElementById('dashTotalPresent').textContent = totalAttendingToday;
             
             // Update dashboard cards
             document.getElementById('dashPresentCount').textContent = stats.totalPresentToday || 0;
@@ -565,7 +580,7 @@
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                             <div>
-                                <span class="text-xs text-gray-600">มาเรียน</span>
+                                <span class="text-xs text-gray-600">เข้าแถว</span>
                                 <p class="font-semibold text-green-600">${cls.present || 0}</p>
                             </div>
                             <div>
@@ -583,7 +598,7 @@
                         </div>
                         <div class="flex justify-between items-center mt-2 text-xs text-gray-600">
                             <span>รวมทั้งหมด: <span class="font-semibold">${cls.total || 0}</span></span>
-                            <span>อัตราเข้าเรียน: <span class="font-semibold">${rate.toFixed(1)}%</span></span>
+                            <span>อัตราเข้าแถว: <span class="font-semibold">${rate.toFixed(1)}%</span></span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
                             <div class="bg-gradient-to-r from-pastel-green to-pastel-mint h-2 rounded-full" 
@@ -679,7 +694,7 @@
                             </div>                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                                 <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-lg p-2 text-center shadow-sm">
                                     <div class="text-lg font-bold text-gray-800">${present}</div>
-                                    <div class="text-xs text-gray-700">มาเรียน</div>
+                                    <div class="text-xs text-gray-700">เข้าแถว</div>
                                 </div>
                                 <div class="bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-lg p-2 text-center shadow-sm">
                                     <div class="text-lg font-bold text-gray-800">${late}</div>
@@ -691,16 +706,16 @@
                                 </div>
                                 <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-lg p-2 text-center shadow-sm">
                                     <div class="text-lg font-bold text-gray-800">${absent}</div>
-                                    <div class="text-xs text-gray-700">ขาดเรียน</div>
+                                    <div class="text-xs text-gray-700">ไม่เข้าแถว</div>
                                 </div>
                             </div>
                             
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm text-gray-600">ทั้งหมด: <span class="font-semibold">${total}</span> คน</span>
-                                <span class="text-sm text-gray-600">อัตราเข้าเรียน: <span class="font-semibold text-pastel-purple">${rate.toFixed(1)}%</span></span>
+                                <span class="text-sm text-gray-600">อัตราเข้าแถว: <span class="font-semibold text-pastel-purple">${rate.toFixed(1)}%</span></span>
                             </div>                            
                             <div class="flex justify-between items-center mb-1">
-                                <span class="text-sm text-gray-600">อัตราการเข้าเรียน</span>
+                                <span class="text-sm text-gray-600">อัตราการเข้าแถว</span>
                                 <span class="text-sm font-semibold text-pastel-purple">${rate.toFixed(1)}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
@@ -746,7 +761,7 @@
                         <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
                             <i class="fas fa-school text-2xl text-pastel-purple"></i>
                         </div>
-                        <p class="text-gray-600">ยังไม่มีการบันทึกการเข้าเรียนในวันนี้</p>                    </div>
+                        <p class="text-gray-600">ยังไม่มีการบันทึกการเข้าแถวในวันนี้</p>                    </div>
                 `;
             }
         }
@@ -764,7 +779,7 @@
                             <i class="fas fa-medal text-2xl text-white"></i>
                         </div>
                         <p class="text-gray-600">ไม่พบข้อมูลนักเรียน</p>
-                        <p class="text-xs text-gray-500 mt-1">เลือกช่วงวันที่เพื่อดูรายชื่อนักเรียนที่มาเรียนสม่ำเสมอ</p>
+                        <p class="text-xs text-gray-500 mt-1">เลือกช่วงวันที่เพื่อดูรายชื่อนักเรียนที่เข้าแถวสม่ำเสมอ</p>
                     </div>
                 `;
                 return;
@@ -778,7 +793,7 @@
                         <div class="w-8 h-8 bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-full flex items-center justify-center mr-2 shadow-sm">
                             <i class="fas fa-trophy text-white text-sm"></i>
                         </div>
-                        <p class="text-sm text-gray-700 font-medium">นักเรียนที่มาเรียนสม่ำเสมอในช่วงที่เลือก</p>
+                        <p class="text-sm text-gray-700 font-medium">นักเรียนที่เข้าแถวสม่ำเสมอในช่วงที่เลือก</p>
                     </div>
                     <div class="flex justify-between text-xs text-gray-500 px-2">
                         <span>ชื่อ-นามสกุล</span>
@@ -842,7 +857,7 @@
                                 <span class="font-bold text-gray-800">${daysPresent}</span>
                                 <span class="text-sm text-gray-700"> วัน</span>
                             </div>
-                            <span class="text-xs text-gray-500 mt-1">มาเรียนสม่ำเสมอ</span>
+                            <span class="text-xs text-gray-500 mt-1">เข้าแถวสม่ำเสมอ</span>
                         </div>
                     `;
                     listWrapper.appendChild(studentCard);
@@ -853,7 +868,7 @@
                             <i class="fas fa-info-circle text-2xl text-white"></i>
                         </div>
                         <p class="text-gray-700 font-medium">ไม่พบข้อมูลนักเรียนในช่วงที่เลือก</p>
-                        <p class="text-xs text-gray-500 mt-1">ลองเลือกช่วงเวลาที่มีการบันทึกการเข้าเรียน</p>
+                        <p class="text-xs text-gray-500 mt-1">ลองเลือกช่วงเวลาที่มีการบันทึกการเข้าแถว</p>
                     </div>
                 `;
             }
@@ -946,7 +961,7 @@
                         labels: labels,
                         datasets: [
                             {
-                                label: 'มาเรียน',
+                                label: 'เข้าแถว',
                                 data: presentData,
                                 backgroundColor: 'rgba(186, 255, 201, 0.7)', // Matching index pastel green
                                 borderColor: 'rgba(150, 230, 161, 1)',
@@ -956,7 +971,7 @@
                                 barPercentage: 0.7
                             },
                             {
-                                label: 'ขาดเรียน',
+                                label: 'ไม่เข้าแถว',
                                 data: absentData,
                                 backgroundColor: 'rgba(255, 179, 186, 0.7)', // Matching index pastel coral
                                 borderColor: 'rgba(242, 145, 155, 1)',

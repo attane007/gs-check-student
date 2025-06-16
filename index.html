@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเช็คชื่อนักเรียน</title>
+    <title>ระบบเช็คชื่อการเข้าแถวตอนเช้า</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -71,7 +71,7 @@
                             <i class="fas fa-graduation-cap text-white text-xl"></i>
                         </div>
                         <div>
-                            <h1 class="text-2xl font-bold text-gray-800">ระบบเช็คชื่อนักเรียน</h1>
+                            <h1 class="text-2xl font-bold text-gray-800">ระบบเช็คชื่อการเข้าแถวตอนเช้า</h1>
                             <p class="text-sm text-gray-600" id="currentDateTime"></p>
                         </div>
                     </div>
@@ -106,7 +106,7 @@
                             ออกจากระบบ
                         </button>
                         <div class="text-right">
-                            <p class="text-sm text-gray-600">นักเรียนที่เข้าเรียนวันนี้</p>
+                            <p class="text-sm text-gray-600">นักเรียนที่เข้าแถววันนี้</p>
                             <p class="text-2xl font-bold text-pastel-purple" id="todayCount">0</p>
                         </div>
                     </div>
@@ -155,14 +155,14 @@
                                         class="bg-gradient-to-r from-pastel-green to-pastel-mint text-gray-800 font-semibold py-2 px-5 rounded-xl hover:shadow-lg transition-all duration-200 text-sm"
                                     >
                                         <i class="fas fa-check-double mr-1"></i>
-                                        เข้าเรียนทั้งหมด
+                                        เข้าแถวทั้งหมด
                                     </button>
                                     <button 
                                         onclick="markAllAbsent()" 
                                         class="bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-2 px-5 rounded-xl hover:shadow-lg transition-all duration-200 text-sm"
                                     >
                                         <i class="fas fa-times-circle mr-1"></i>
-                                        ขาดเรียนทั้งหมด
+                                        ไม่เข้าแถวทั้งหมด
                                     </button>
                                 </div>
                             </div>
@@ -185,11 +185,11 @@
                             <div class="flex flex-wrap justify-center gap-3 mb-4 text-xs">
                                 <div class="flex items-center">
                                     <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-green to-pastel-mint mr-1"></span>
-                                    <span>มาเรียน</span>
+                                    <span>เข้าแถว</span>
                                 </div>
                                 <div class="flex items-center">
                                     <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-coral to-pastel-pink mr-1"></span>
-                                    <span>ขาดเรียน</span>
+                                    <span>ไม่เข้าแถว</span>
                                 </div>
                                 <div class="flex items-center">
                                     <span class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-yellow to-pastel-peach mr-1"></span>
@@ -251,15 +251,15 @@
                     <div class="glass-effect rounded-2xl p-6 simple-hover">
                         <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                             <i class="fas fa-chart-bar text-pastel-purple mr-2"></i>
-                            สถิติการเข้าเรียน
+                            สถิติการเข้าแถว
                         </h3>
                         <div class="space-y-4">
                             <div class="flex justify-between items-center">
-                                <span class="text-gray-600">มาเรียน</span>
+                                <span class="text-gray-600">เข้าแถว</span>
                                 <span class="text-2xl font-bold text-pastel-green" id="statsPresent">0</span>
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-gray-600">ขาดเรียน</span>
+                                <span class="text-gray-600">ไม่เข้าแถว</span>
                                 <span class="text-2xl font-bold text-red-400" id="statsAbsent">0</span>
                             </div>
                             <div class="flex justify-between items-center">
@@ -270,7 +270,7 @@
                                 <div id="attendanceProgress" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-3 rounded-full" style="width: 0%"></div>
                             </div>
                             <p class="text-sm text-gray-600 text-center">
-                                เปอร์เซ็นต์การเข้าเรียน: <span id="attendancePercentage" class="font-semibold">0%</span>
+                                เปอร์เซ็นต์การเข้าแถว: <span id="attendancePercentage" class="font-semibold">0%</span>
                             </p>
                         </div>
                     </div>
@@ -680,14 +680,14 @@
                         </div>
                         <div class="student-actions flex space-x-2">
                             <button 
-                                title="มาเรียน" 
+                                title="เข้าแถว" 
                                 onclick="markStudent('${studentId}', 'present')" 
                                 class="action-btn bg-gradient-to-r from-pastel-green/70 to-pastel-mint/70 hover:from-pastel-green hover:to-pastel-mint text-green-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
                             >
                                 <i class="fas fa-check"></i>
                             </button>
                             <button 
-                                title="ขาดเรียน" 
+                                title="ไม่เข้าแถว" 
                                 onclick="markStudent('${studentId}', 'absent')" 
                                 class="action-btn bg-gradient-to-r from-pastel-coral/70 to-pastel-pink/70 hover:from-pastel-coral hover:to-pastel-pink text-red-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
                             >
@@ -740,8 +740,8 @@
                 
                 // Determine which button to highlight
                 let targetButton;
-                if (status === 'present') targetButton = card.querySelector('button[title="มาเรียน"]');
-                else if (status === 'absent') targetButton = card.querySelector('button[title="ขาดเรียน"]');
+                if (status === 'present') targetButton = card.querySelector('button[title="เข้าแถว"]');
+                else if (status === 'absent') targetButton = card.querySelector('button[title="ไม่เข้าแถว"]');
                 else if (status === 'late') targetButton = card.querySelector('button[title="มาสาย"]');
                 else if (status === 'excused') targetButton = card.querySelector('button[title="ลา"]');
 
@@ -894,7 +894,7 @@
                                     <i class="fas fa-user-check text-green-700"></i>
                                 </div>
                                 <p class="text-xl font-bold text-gray-800">${totalPresent}</p>
-                                <p class="text-xs text-gray-700">มาเรียน</p>
+                                <p class="text-xs text-gray-700">เข้าแถว</p>
                             </div>
                             
                             <!-- Absent Card -->
@@ -903,7 +903,7 @@
                                     <i class="fas fa-user-times text-red-700"></i>
                                 </div>
                                 <p class="text-xl font-bold text-gray-800">${absent}</p>
-                                <p class="text-xs text-gray-700">ขาดเรียน</p>
+                                <p class="text-xs text-gray-700">ไม่เข้าแถว</p>
                             </div>
                             
                             <!-- Leave Card -->
@@ -919,7 +919,7 @@
                         <!-- Attendance Rate Progress -->
                         <div class="space-y-2">
                             <div class="flex justify-between text-sm">
-                                <span>อัตราการเข้าเรียน</span>
+                                <span>อัตราการเข้าแถว</span>
                                 <span class="font-semibold">${attendanceRate.toFixed(1)}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">

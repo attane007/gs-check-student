@@ -168,51 +168,42 @@ function findStudentById(studentId) {
 /**
  * ฟังก์ชันบันทึกการเข้าเรียน
  */
-function recordAttendance(studentId, status = 'เข้าเรียน') {
+function recordAttendance(studentId, studentFullName, studentClassroom, status = 'เข้าเรียน') {
   try {
-    console.log('Recording attendance for student:', studentId);
-    
-    // ค้นหาข้อมูลนักเรียน
-    const studentResult = findStudentById(studentId);
-    if (!studentResult.success) {
-      return studentResult;
-    }
-    
-    const student = studentResult.student;
+    console.log('Recording attendance for student:', studentId, studentFullName, studentClassroom, status);
+
     const now = new Date();
     const dateStr = Utilities.formatDate(now, 'Asia/Bangkok', 'dd/MM/yyyy');
     const timeStr = Utilities.formatDate(now, 'Asia/Bangkok', 'HH:mm:ss');
-    
-    // บันทึกลงใน Attendance Sheet
+
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
-    
+
     if (!attendanceSheet) {
       return { success: false, message: 'ไม่พบ Sheet การเข้าเรียน' };
     }
-    
-    // เพิ่มแถวใหม่
+
     attendanceSheet.appendRow([
       dateStr,
       timeStr,
-      student.id,
-      student.fullName,
-      student.classroom,
+      studentId,
+      studentFullName, // Use passed name
+      studentClassroom, // Use passed classroom
       status
     ]);
-    
-    console.log('Attendance recorded successfully for:', student.fullName);
-    
+
+    console.log('Attendance recorded successfully for:', studentFullName);
+
     return {
       success: true,
       message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
-      student: student,
+      student: { id: studentId, fullName: studentFullName, classroom: studentClassroom },
       timestamp: dateStr + ' ' + timeStr,
       status: status
     };
-    
+
   } catch (error) {
-    console.error('Error recording attendance:', error);
+    console.error('Error recording attendance:', error, error.stack);
     return {
       success: false,
       message: 'เกิดข้อผิดพลาดในการบันทึกการเข้าเรียน: ' + error.message
@@ -227,48 +218,61 @@ function getTodayAttendance() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
-    
-    if (!attendanceSheet) {
-      return { success: false, message: 'ไม่พบ Sheet การเข้าเรียน' };
-    }
-    
-    const data = attendanceSheet.getDataRange().getValues();
     const today = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'dd/MM/yyyy');
+
+    if (!attendanceSheet) {
+      console.error('Attendance sheet not found:', ATTENDANCE_SHEET_NAME);
+      return { success: false, message: 'ไม่พบ Sheet การเข้าเรียน (' + ATTENDANCE_SHEET_NAME + ')' };
+    }
+
+    const lastRow = attendanceSheet.getLastRow();
     const todayAttendance = [];
-    
-    console.log('Looking for attendance on:', today);
-    console.log('Total rows in attendance sheet:', data.length);
-    
-    // ข้าม header row (index 0)
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === today) {
-        todayAttendance.push({
-          date: data[i][0],
-          time: data[i][1],
-          studentId: data[i][2],
-          studentName: data[i][3],
-          classroom: data[i][4],
-          status: data[i][5]
+
+    if (lastRow > 1) { // Only process if there are data rows beyond the header
+      const dataRange = attendanceSheet.getRange(2, 1, lastRow - 1, 6); // Start from row 2, get 6 columns
+      const data = dataRange.getValues();
+      console.log('Looking for attendance on:', today, 'in', data.length, 'data rows.');
+
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        if (row[0] && row[0].toString() === today) {
+          todayAttendance.push({
+            date: row[0].toString(),
+            time: row[1] ? row[1].toString() : '',
+            studentId: row[2] ? row[2].toString() : '',
+            studentName: row[3] ? row[3].toString() : '',
+            classroom: row[4] ? row[4].toString() : '',
+            status: row[5] ? row[5].toString() : ''
+          });
+        }
+      }
+
+      if (todayAttendance.length > 0) {
+        todayAttendance.sort((a, b) => {
+          try {
+            const timeA = typeof a.time === 'string' && a.time.match(/\\d{2}:\\d{2}:\\d{2}/) ? a.time : '00:00:00';
+            const timeB = typeof b.time === 'string' && b.time.match(/\\d{2}:\\d{2}:\\d{2}/) ? b.time : '00:00:00';
+            return new Date('1970/01/01 ' + timeB) - new Date('1970/01/01 ' + timeA);
+          } catch (sortError) {
+            console.error('Error sorting attendance times:', sortError, 'a.time:', a.time, 'b.time:', b.time);
+            return 0;
+          }
         });
       }
+    } else {
+      console.log('Attendance sheet has no data rows (or only headers). Last row:', lastRow);
     }
     
-    // เรียงตามเวลาล่าสุด
-    todayAttendance.sort((a, b) => {
-      return new Date('1970/01/01 ' + b.time) - new Date('1970/01/01 ' + a.time);
-    });
-    
     console.log('Found attendance records for today:', todayAttendance.length);
-    
     return {
       success: true,
       attendance: todayAttendance,
       total: todayAttendance.length,
       date: today
     };
-    
+
   } catch (error) {
-    console.error('Error getting today attendance:', error);
+    console.error('Error in getTodayAttendance:', error, error.stack);
     return {
       success: false,
       message: 'เกิดข้อผิดพลาดในการดึงข้อมูลการเข้าเรียนวันนี้: ' + error.message
@@ -279,19 +283,28 @@ function getTodayAttendance() {
 /**
  * ฟังก์ชันสำหรับหน้าเว็บ
  */
-function doGet() {
-  // เตรียม Sheets ให้พร้อมใช้งานก่อนแสดงหน้าเว็บ
+function doGet(e) {
   try {
+    // Initialize sheets regardless of the page being served
     const initResult = initializeSheets();
     console.log('Initialize sheets result:', initResult);
   } catch (error) {
     console.error('Error initializing sheets in doGet:', error);
   }
-  
-  return HtmlService.createTemplateFromFile('index')
-    .evaluate()
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .setTitle('ระบบเช็คชื่อนักเรียน');
+
+  let page = e.parameter.page;
+  if (page === 'dashboard') {
+    return HtmlService.createTemplateFromFile('dashboard')
+      .evaluate()
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .setTitle('Dashboard - ระบบเช็คชื่อนักเรียน');
+  } else {
+    // Default to index page (attendance)
+    return HtmlService.createTemplateFromFile('index')
+      .evaluate()
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .setTitle('ระบบเช็คชื่อนักเรียน');
+  }
 }
 
 /**
@@ -512,8 +525,8 @@ function getTopAttendees(attendanceData, allStudents, limit = 10) {
 /**
  * ฟังก์ชันสำหรับ client-side เรียกใช้
  */
-function checkAttendance(studentId) {
-  return recordAttendance(studentId);
+function checkAttendance(studentId, studentFullName, studentClassroom, status) {
+  return recordAttendance(studentId, studentFullName, studentClassroom, status);
 }
 
 function getStudentsList() {

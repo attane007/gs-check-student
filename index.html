@@ -33,9 +33,12 @@
             font-family: 'Kanit', sans-serif;
         }
         .glass-effect {
-            backdrop-filter: blur(10px);
-            background-color: rgba(255, 255, 255, 0.8);
+            /* backdrop-filter: blur(10px); */ /* Removed for performance */
+            background-color: rgba(255, 255, 255, 0.85); /* Slightly more opaque */
             border: 1px solid rgba(209, 213, 219, 0.3);
+        }
+        .blur-backdrop {
+            backdrop-filter: blur(10px);
         }
         .simple-hover:hover {
             opacity: 0.9;
@@ -43,7 +46,7 @@
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-pastel-pink via-pastel-peach to-pastel-yellow">    <!-- Header -->
-    <header class="glass-effect border-b border-white/20 sticky top-0 z-50">
+    <header class="glass-effect blur-backdrop border-b border-white/20 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
@@ -56,24 +59,23 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Navigation Tabs -->
+                    <!-- Navigation -->
                     <div class="flex space-x-2">
-                        <button 
-                            id="attendanceTab" 
-                            onclick="showTab('attendance')" 
+                        <a 
+                            href="<?= ScriptApp.getService().getUrl(); ?>?page=index" 
                             class="px-4 py-2 rounded-lg font-semibold bg-pastel-green text-gray-800"
                         >
                             <i class="fas fa-check-circle mr-1"></i>
                             เช็คชื่อ
-                        </button>
-                        <button 
-                            id="dashboardTab" 
-                            onclick="showTab('dashboard')" 
+                        </a>
+                        <a 
+                            href="<?= ScriptApp.getService().getUrl(); ?>?page=dashboard" 
+                            target="_blank" 
                             class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70"
                         >
                             <i class="fas fa-chart-pie mr-1"></i>
                             Dashboard
-                        </button>
+                        </a>
                     </div>
                     <div class="text-right">
                         <p class="text-sm text-gray-600">นักเรียนที่เข้าเรียนวันนี้</p>
@@ -196,83 +198,12 @@
                 </div>
             </div>        </div>
 
-        <!-- Dashboard Section -->
-        <div id="dashboardSection" class="hidden">
-            <div class="grid lg:grid-cols-2 gap-8">
-                <!-- Attendance Overview -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-chart-pie text-pastel-purple mr-3"></i>
-                        ภาพรวมการเข้าเรียนวันนี้
-                    </h2>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-xl p-4 text-center">
-                            <i class="fas fa-user-check text-3xl text-gray-700 mb-2"></i>
-                            <p class="text-2xl font-bold text-gray-800" id="dashTotalPresent">0</p>
-                            <p class="text-sm text-gray-600">มาเรียน</p>
-                        </div>
-                        <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-xl p-4 text-center">
-                            <i class="fas fa-user-times text-3xl text-gray-700 mb-2"></i>
-                            <p class="text-2xl font-bold text-gray-800" id="dashTotalAbsent">0</p>
-                            <p class="text-sm text-gray-600">ขาดเรียน</p>
-                        </div>
-                    </div>
-
-                    <!-- Attendance Rate Chart -->
-                    <div class="space-y-3">
-                        <div class="flex justify-between text-sm">
-                            <span>อัตราการเข้าเรียน</span>
-                            <span id="dashAttendanceRate" class="font-semibold">0%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-4">
-                            <div id="dashAttendanceBar" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Classroom Statistics -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-chalkboard-teacher text-pastel-purple mr-3"></i>
-                        สถิติแยกตามห้องเรียน
-                    </h2>
-                    
-                    <div id="classroomStats" class="space-y-4">
-                        <p class="text-gray-600 text-center py-8">กำลังโหลดข้อมูล...</p>
-                    </div>
-                </div>
-
-                <!-- Top Students -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-trophy text-pastel-purple mr-3"></i>
-                        นักเรียนที่มาเรียนสม่ำเสมอ
-                    </h2>
-                    
-                    <div id="topStudents" class="space-y-3">
-                        <p class="text-gray-600 text-center py-8">กำลังโหลดข้อมูล...</p>
-                    </div>
-                </div>
-
-                <!-- Recent Activity -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-history text-pastel-purple mr-3"></i>
-                        กิจกรรมล่าสุด
-                    </h2>
-                    
-                    <div id="dashRecentActivity" class="space-y-3">
-                        <p class="text-gray-600 text-center py-8">ยังไม่มีกิจกรรมวันนี้</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Dashboard Section Removed -->
     </div>
 
     <!-- Success Modal -->
     <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="glass-effect rounded-2xl p-8 m-4 max-w-md w-full text-center">
+        <div class="glass-effect blur-backdrop rounded-2xl p-8 m-4 max-w-md w-full text-center">
             <div class="w-20 h-20 bg-gradient-to-r from-pastel-green to-pastel-mint rounded-full flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-check text-white text-3xl"></i>
             </div>
@@ -285,7 +216,7 @@
 
     <!-- Error Modal -->
     <div id="errorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="glass-effect rounded-2xl p-8 m-4 max-w-md w-full text-center">
+        <div class="glass-effect blur-backdrop rounded-2xl p-8 m-4 max-w-md w-full text-center">
             <div class="w-20 h-20 bg-gradient-to-r from-red-400 to-red-300 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
             </div>
@@ -300,34 +231,6 @@
         let classroomsData = [];
         let currentClassroomStudents = [];
         let attendanceMarks = {}; // เก็บสถานะการเข้าเรียนที่ยังไม่ได้บันทึก
-        let dashboardStats = {};
-
-        // Tab switching function
-        function showTab(tabName) {
-            const attendanceSection = document.getElementById('attendanceSection');
-            const dashboardSection = document.getElementById('dashboardSection');
-            const attendanceTab = document.getElementById('attendanceTab');
-            const dashboardTab = document.getElementById('dashboardTab');
-
-            if (tabName === 'attendance') {
-                attendanceSection.classList.remove('hidden');
-                dashboardSection.classList.add('hidden');
-                
-                // Update tab styles
-                attendanceTab.className = 'px-4 py-2 rounded-lg font-semibold bg-pastel-green text-gray-800';
-                dashboardTab.className = 'px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70';
-            } else if (tabName === 'dashboard') {
-                attendanceSection.classList.add('hidden');
-                dashboardSection.classList.remove('hidden');
-                
-                // Update tab styles
-                dashboardTab.className = 'px-4 py-2 rounded-lg font-semibold bg-pastel-green text-gray-800';
-                attendanceTab.className = 'px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70';
-                
-                // Load dashboard data
-                loadDashboardData();
-            }
-        }
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -587,37 +490,47 @@
             
             showLoading(true);
             
-            // Save each attendance mark
             let savedCount = 0;
             let totalCount = pendingMarks.length;
+            let errorsOccurred = false;
             
             pendingMarks.forEach(([studentId, status]) => {
-                if (status === 'present') {
-                    google.script.run
-                        .withSuccessHandler(function(result) {
-                            savedCount++;
-                            if (savedCount === totalCount) {
-                                handleSaveComplete();
-                            }
-                        })
-                        .withFailureHandler(function(error) {
-                            console.error('Error saving attendance:', error);
-                            savedCount++;
-                            if (savedCount === totalCount) {
-                                handleSaveComplete();
-                            }
-                        })
-                        .checkAttendance(studentId);
-                } else {
-                    // For absent, we can implement a separate function or skip saving
-                    savedCount++;
+                const student = currentClassroomStudents.find(s => s.id === studentId);
+                if (!student) {
+                    console.error('Student not found in currentClassroomStudents:', studentId);
+                    savedCount++; // Increment to avoid infinite loading
                     if (savedCount === totalCount) {
-                        handleSaveComplete();
+                        handleSaveComplete(errorsOccurred);
                     }
+                    return; // Skip this student
                 }
+
+                // Pass student's full name and classroom along with ID and status
+                google.script.run
+                    .withSuccessHandler(function(result) {
+                        savedCount++;
+                        if (result && !result.success) {
+                            errorsOccurred = true;
+                            console.error('Error saving attendance for student:', studentId, result.message);
+                        }
+                        if (savedCount === totalCount) {
+                            handleSaveComplete(errorsOccurred);
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        errorsOccurred = true;
+                        console.error('Error saving attendance for student:', studentId, error);
+                        savedCount++;
+                        if (savedCount === totalCount) {
+                            handleSaveComplete(errorsOccurred);
+                        }
+                    })
+                    .checkAttendance(studentId, student.fullName, student.classroom, status);
             });
-        }        // Handle save completion
-        function handleSaveComplete() {
+        }
+
+        // Handle save completion
+        function handleSaveComplete(errorsOccurred) {
             attendanceMarks = {}; // Clear local marks
             showLoading(true);    // Show loading indicator for the entire refresh sequence
 
@@ -629,214 +542,60 @@
                         updateTodayCount();      // Update UI for total today's count
                         updateRecentCheckIns();  // Update UI for recent check-ins list
 
-                        // After today's attendance is updated,
-                        // if a classroom is selected, reload its students and update related UI
                         const selectedClassroom = document.getElementById('classroomSelect').value;
-                        // Check if a classroom is selected and if there were students loaded for it previously
-                        // to avoid unnecessary calls if no classroom context is active.
                         if (selectedClassroom && currentClassroomStudents.length > 0) {
                             google.script.run
                                 .withSuccessHandler(function(studentsResult) {
                                     if (studentsResult && studentsResult.success) {
                                         currentClassroomStudents = studentsResult.students; // Update global variable
-                                        // Refresh UI elements that depend on both todayAttendance and currentClassroomStudents
                                         displayStudentsList(studentsResult.students, selectedClassroom);
                                         updateClassroomInfo(selectedClassroom, studentsResult.students);
-                                        updateStats(); // This will now use the fresh data
+                                        updateStats(); 
                                     } else {
                                         console.error('Failed to reload classroom students after save:', studentsResult);
-                                        // Optionally show a non-modal error to the user
                                     }
-                                    // All data reloaded and UI updated
                                     showLoading(false);
-                                    showSuccess({
-                                        message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
-                                        timestamp: new Date().toLocaleString('th-TH')
-                                    });
+                                    if (!errorsOccurred) {
+                                        showSuccess({
+                                            message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
+                                            timestamp: new Date().toLocaleString('th-TH')
+                                        });
+                                    } else {
+                                        showError('เกิดข้อผิดพลาดบางส่วนในการบันทึกข้อมูล โปรดตรวจสอบ Console');
+                                    }
                                 })
                                 .withFailureHandler(function(error) {
                                     console.error('Error reloading classroom students after save:', error);
-                                    showLoading(false); // Hide loading on error
+                                    showLoading(false); 
                                     showError('เกิดข้อผิดพลาดในการโหลดข้อมูลนักเรียนหลังบันทึก');
                                 })
                                 .getClassroomStudents(selectedClassroom);
                         } else {
-                            // No classroom selected, or no students were loaded for it.
-                            // UI elements like todayCount and recentCheckIns are already updated.
-                            // Classroom-specific stats and student list are not applicable or remain as is.
-                            showLoading(false); // Hide loading
-                            showSuccess({
-                                message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
-                                timestamp: new Date().toLocaleString('th-TH')
-                            });
+                            showLoading(false); 
+                            if (!errorsOccurred) {
+                                showSuccess({
+                                    message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
+                                    timestamp: new Date().toLocaleString('th-TH')
+                                });
+                            } else {
+                                showError('เกิดข้อผิดพลาดบางส่วนในการบันทึกข้อมูล โปรดตรวจสอบ Console');
+                            }
                         }
                     } else {
                         console.error('Failed to reload today\'s attendance after save:', attendanceResult);
-                        showLoading(false); // Hide loading on error
-                        showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนล่าสุด');
+                        showLoading(false); 
+                        showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนล่าสุด: ' + (attendanceResult ? attendanceResult.message : 'Unknown error'));
                     }
                 })
                 .withFailureHandler(function(error) {
                     console.error('Error reloading today\'s attendance after save:', error);
-                    showLoading(false); // Hide loading on error
-                    showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนล่าสุด');
+                    showLoading(false); 
+                    showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนล่าสุด: ' + error.message);
                 })
-                .getTodayAttendanceList(); // Fetch the latest attendance list from the backend
+                .getTodayAttendanceList(); 
         }
 
-        // Load dashboard data
-        function loadDashboardData() {
-            console.log('Loading dashboard data...');
-            
-            google.script.run
-                .withSuccessHandler(function(result) {
-                    if (result && result.success) {
-                        dashboardStats = result.stats;
-                        updateDashboardDisplay();
-                    } else {
-                        console.error('Failed to load dashboard stats:', result);
-                    }
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error loading dashboard stats:', error);
-                })
-                .getDashboardStats();
-        }
-
-        // Update dashboard display
-        function updateDashboardDisplay() {
-            // Update total attendance numbers
-            const totalPresent = todayAttendance.length;
-            const totalStudents = getTotalStudentsCount();
-            const totalAbsent = totalStudents - totalPresent;
-            const attendanceRate = totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : 0;
-
-            document.getElementById('dashTotalPresent').textContent = totalPresent;
-            document.getElementById('dashTotalAbsent').textContent = totalAbsent;
-            document.getElementById('dashAttendanceRate').textContent = attendanceRate + '%';
-            document.getElementById('dashAttendanceBar').style.width = attendanceRate + '%';
-
-            // Update classroom statistics
-            updateClassroomStatsDisplay();
-            
-            // Update top students
-            updateTopStudentsDisplay();
-            
-            // Update recent activity
-            updateDashboardRecentActivity();
-        }
-
-        // Update classroom statistics display
-        function updateClassroomStatsDisplay() {
-            const classroomStats = document.getElementById('classroomStats');
-            
-            if (!classroomsData || classroomsData.length === 0) {
-                classroomStats.innerHTML = '<p class="text-gray-600 text-center py-8">ไม่มีข้อมูลห้องเรียน</p>';
-                return;
-            }
-
-            const statsHtml = classroomsData.map(classroom => {
-                const classroomAttendance = todayAttendance.filter(record => record.classroom === classroom);
-                const attendanceCount = classroomAttendance.length;
-                
-                return `
-                    <div class="flex items-center justify-between p-4 bg-white/30 rounded-lg border border-white/50">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center">
-                                <i class="fas fa-chalkboard-teacher text-white text-sm"></i>
-                            </div>
-                            <span class="font-semibold">${classroom}</span>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-lg font-bold text-pastel-green">${attendanceCount}</span>
-                            <span class="text-sm text-gray-600 ml-1">คน</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            classroomStats.innerHTML = statsHtml;
-        }
-
-        // Update top students display
-        function updateTopStudentsDisplay() {
-            const topStudents = document.getElementById('topStudents');
-            
-            if (!todayAttendance || todayAttendance.length === 0) {
-                topStudents.innerHTML = '<p class="text-gray-600 text-center py-8">ยังไม่มีข้อมูลการเข้าเรียนวันนี้</p>';
-                return;
-            }
-
-            // Get recent check-ins (sorted by time, most recent first)
-            const recentStudents = todayAttendance
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .slice(0, 5);
-
-            const studentsHtml = recentStudents.map((student, index) => {
-                const iconColors = ['text-yellow-500', 'text-gray-400', 'text-orange-400', 'text-blue-500', 'text-green-500'];
-                const bgColors = ['bg-yellow-100', 'bg-gray-100', 'bg-orange-100', 'bg-blue-100', 'bg-green-100'];
-                
-                return `
-                    <div class="flex items-center justify-between p-3 ${bgColors[index] || 'bg-gray-50'} rounded-lg">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                                <i class="fas fa-trophy ${iconColors[index] || 'text-gray-400'} text-sm"></i>
-                            </div>
-                            <div>
-                                <p class="font-semibold text-sm">${student.studentName}</p>
-                                <p class="text-xs text-gray-600">${student.classroom}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs text-gray-600">${student.time}</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            topStudents.innerHTML = studentsHtml;
-        }
-
-        // Update dashboard recent activity
-        function updateDashboardRecentActivity() {
-            const dashRecentActivity = document.getElementById('dashRecentActivity');
-            
-            if (!todayAttendance || todayAttendance.length === 0) {
-                dashRecentActivity.innerHTML = '<p class="text-gray-600 text-center py-8">ยังไม่มีกิจกรรมวันนี้</p>';
-                return;
-            }
-
-            const recentActivities = todayAttendance
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .slice(0, 8);
-
-            const activitiesHtml = recentActivities.map(activity => `
-                <div class="flex items-center justify-between p-3 bg-white/20 rounded-lg border border-white/30">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-pastel-green to-pastel-mint rounded-full flex items-center justify-center">
-                            <i class="fas fa-check text-white text-xs"></i>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-sm">${activity.studentName}</p>
-                            <p class="text-xs text-gray-600">${activity.classroom}</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xs text-gray-600">${activity.time}</p>
-                        <span class="inline-block w-2 h-2 bg-green-400 rounded-full"></span>
-                    </div>
-                </div>
-            `).join('');
-
-            dashRecentActivity.innerHTML = activitiesHtml;
-        }
-
-        // Get total students count across all classrooms
-        function getTotalStudentsCount() {
-            // This is an approximation - in a real scenario, you'd get this from the backend
-            const uniqueClassrooms = [...new Set(classroomsData)];
-            return uniqueClassrooms.length * 30; // Assuming average 30 students per classroom
-        }// Update classroom info
+        // Update classroom info
         function updateClassroomInfo(classroom, students) {
             const classroomInfo = document.getElementById('classroomInfo');
             const totalStudents = students.length;

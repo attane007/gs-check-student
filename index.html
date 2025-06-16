@@ -514,8 +514,9 @@
                         classroomLoaded = true;
                         handleAuthError('Error loading classrooms: ' + error.message);
                         checkAllLoaded();
-                    })
-                    .getClassrooms(currentToken);                // Fetch daily attendance stats for "todayCount"
+                    })                    .getClassrooms(currentToken);
+
+                // Fetch daily attendance stats
                 console.log('About to call getDailyAttendanceStats with token:', currentToken ? 'Token exists' : 'No token!');
                 if (!currentToken) {
                     console.warn('WARNING: Token is missing for getDailyAttendanceStats call! Trying to recover...');
@@ -528,7 +529,7 @@
                         statsLoaded = true;
                         console.log('getDailyAttendanceStats response:', response);                        if (response.success) {
                             if (response.totalPresentToday !== undefined) {
-                                document.getElementById('todayCount').textContent = response.totalPresentToday;
+                                // Today count display removed from navbar
                             } else if (response.dailyStats && response.dailyStats.length > 0) {
                                 // If we have daily stats, use them to calculate total present for today
                                 const today = new Date();
@@ -537,30 +538,24 @@
                                     String(today.getDate()).padStart(2, '0');
                                   const todayStat = response.dailyStats.find(stat => stat.date === todayString);
                                 if (todayStat) {
-                                    // Count both present and late students to match dashboard calculation
-                                    const totalAttending = (todayStat.present || 0) + (todayStat.late || 0);
-                                    document.getElementById('todayCount').textContent = totalAttending;
+                                    // Data loaded successfully but display removed from navbar
                                 } else {
                                     console.warn('No stats found for today in dailyStats array');
-                                    document.getElementById('todayCount').textContent = '0';
                                 }
                             } else {
                                 console.warn('Daily attendance stats loaded successfully but data is missing.');
-                                document.getElementById('todayCount').textContent = '0';
                             }
-                        } else {
-                            console.error('Failed to load daily attendance stats:', response.error || 'Unknown error');
+                        } else {                            console.error('Failed to load daily attendance stats:', response.error || 'Unknown error');
                             if(response.expired) {
                                 handleAuthError(response.error || 'Session expired while loading daily stats.', response.expired);
                             } else {
-                                document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
+                                // Today count display removed from navbar
                             }
                         }                        checkAllLoaded();
-                    })
-                    .withFailureHandler(function(error) {
+                    })                    .withFailureHandler(function(error) {
                         statsLoaded = true;
                         console.error('Error loading daily attendance stats:', error.message);
-                        document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
+                        // Today count display removed from navbar
                         checkAllLoaded();
                     })
                     .getDailyAttendanceStats(7, currentToken); // Pass days=7 as first parameter
@@ -832,10 +827,9 @@
                                 }, 500);
                             }, 2000);
                         }, 0);
-                        
-                        if (response.success) {
+                          if (response.success) {
                             if (response.newTotalPresentToday !== undefined) {
-                                document.getElementById('todayCount').textContent = response.newTotalPresentToday;
+                                // Today count display removed from navbar
                             }
                         } else {
                              handleAuthError(response.message || 'Failed to record attendance.', response.expired);

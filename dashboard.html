@@ -313,10 +313,8 @@
         
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Dashboard loading...');
-            
-            // Check that all critical UI elements are present
+              // Check that all critical UI elements are present
             const criticalElements = [
-                'dashTotalPresent', 
                 'dashTotalAbsent', 
                 'dashAttendanceRate', 
                 'dashAttendanceBar',
@@ -554,14 +552,13 @@
         }
         
         function updateDashboardUI(stats) {
-            if (!stats) return;            console.log('Updating dashboard UI with stats:', stats);
-              // Update dashboard header count - the dashboard already includes late students in totalPresentToday count
+            if (!stats) return;            console.log('Updating dashboard UI with stats:', stats);              // Update dashboard header count - removed from navbar
             // We should NOT add them again to avoid double-counting
             const totalAttendingToday = stats.totalPresentToday || 0; // totalPresentToday already includes late students
             console.log('Total attending today:', totalAttendingToday, 
                 '(Present:', stats.totalPresentToday, '+ Late:', stats.totalLateToday, 
                 '- Note: Present already includes Late in backend calculation)');
-            document.getElementById('dashTotalPresent').textContent = totalAttendingToday;
+            // dashTotalPresent element removed from navbar
             
             // Update dashboard cards
             document.getElementById('dashPresentCount').textContent = stats.totalPresentToday || 0;

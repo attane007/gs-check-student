@@ -141,8 +141,7 @@
                             <p class="text-3xl font-bold text-gray-800" id="dashTotalAbsent">0</p>
                             <p class="text-sm font-medium text-gray-800 mt-1">ขาดเรียน</p>
                         </div>
-                        
-                        <!-- Late Card -->
+                          <!-- Late Card -->
                         <div class="bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-xl p-4 text-center shadow-lg transform transition-all duration-300 hover:scale-105 border border-white/50 relative overflow-hidden">
                             <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/20 rounded-full"></div>
                             <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full"></div>
@@ -151,6 +150,17 @@
                             </div>
                             <p class="text-3xl font-bold text-gray-800" id="dashLateCount">0</p>
                             <p class="text-sm font-medium text-gray-800 mt-1">มาสาย</p>
+                        </div>
+                        
+                        <!-- Excused Card -->
+                        <div class="bg-gradient-to-r from-pastel-blue to-pastel-sky rounded-xl p-4 text-center shadow-lg transform transition-all duration-300 hover:scale-105 border border-white/50 relative overflow-hidden">
+                            <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/20 rounded-full"></div>
+                            <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                            <div class="w-16 h-16 mx-auto mb-2 bg-white/30 rounded-full flex items-center justify-center shadow-inner">
+                                <i class="fas fa-calendar-minus text-blue-700 text-2xl"></i>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800" id="dashExcusedCount">0</p>
+                            <p class="text-sm font-medium text-gray-800 mt-1">ลา</p>
                         </div>
                     </div>                    <div class="bg-white/70 rounded-xl p-4 shadow-md border border-white/50">
                         <div class="flex justify-between items-center mb-2">
@@ -284,7 +294,9 @@
             document.body.appendChild(a); // Link must be in the document to be clicked
             a.click();
             document.body.removeChild(a); // Clean up the temporary link
-        }        document.addEventListener('DOMContentLoaded', function() {
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
             console.log('Dashboard loading...');
             
             // Check that all critical UI elements are present
@@ -293,6 +305,7 @@
                 'dashTotalAbsent', 
                 'dashAttendanceRate', 
                 'dashAttendanceBar',
+                'dashExcusedCount', // new for "ลา"
                 'classroomStatsToday', 
                 'overallClassroomStats', 
                 'topOverallAttendees',
@@ -432,12 +445,12 @@
             }
             // window.top.location.href = targetUrl;
             triggerTopNavigation(targetUrl);
-        }
-
-        function handleAuthError(errorMessage, isExpired) {
+        }        function handleAuthError(errorMessage, isExpired) {
             console.error('Auth Error:', errorMessage);
             showErrorModal('Authentication Error: ' + errorMessage + (isExpired ? ' (Token Expired)' : ''), true);
-        }        function setLoadingState(isLoading, message = 'กำลังประมวลผล...') {
+        }
+        
+        function setLoadingState(isLoading, message = 'กำลังประมวลผล...') {
             const loadingIndicator = document.getElementById('loadingIndicator');
             const loadingMessage = document.getElementById('loadingMessage');
             
@@ -455,9 +468,10 @@
                 loadingIndicator.classList.add('hidden');
                 document.body.classList.remove('overflow-hidden');
             }
-            
-            console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
-        }function loadOverallDashboardDataWithToken() {
+              console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
+        }
+        
+        function loadOverallDashboardDataWithToken() {
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
             
@@ -498,20 +512,22 @@
                 .withFailureHandler(function(error) {
                     setLoadingState(false);
                     handleAuthError('Error loading dashboard data: ' + error.message);
-                })
-                .getDashboardData(dateFrom, dateTo, currentToken);
-        }function updateDashboardUI(stats) {
+                })                .getDashboardData(dateFrom, dateTo, currentToken);
+        }
+        
+        function updateDashboardUI(stats) {
             if (!stats) return;
             console.log('Updating dashboard UI with stats:', stats);
             
-            // Update dashboard header count
-            document.getElementById('dashTotalPresent').textContent = stats.totalPresentToday || 0;
+            // Update dashboard header count            document.getElementById('dashTotalPresent').textContent = stats.totalPresentToday || 0;
             
             // Update dashboard cards
             document.getElementById('dashPresentCount').textContent = stats.totalPresentToday || 0;
             document.getElementById('dashTotalAbsent').textContent = stats.totalAbsentToday || 0;
             document.getElementById('dashLateCount').textContent = stats.totalLateToday || 0;
-              const rate = stats.overallAttendanceRateToday || 0;
+            document.getElementById('dashExcusedCount').textContent = stats.totalExcusedToday || 0; // เพิ่มสถานะ "ลา"
+            
+            const rate = stats.overallAttendanceRateToday || 0;
             document.getElementById('dashAttendanceRate').textContent = `${rate.toFixed(1)}%`;
             
             // Also update the text inside the progress bar if the percentage is high enough to show it
@@ -540,27 +556,34 @@
                     
                     const rate = cls.rate !== undefined ? cls.rate : 
                                (cls.total > 0 ? ((cls.present || 0) / cls.total * 100) : 0);
-                    
-                    card.innerHTML = `
+                      card.innerHTML = `
                         <div class="flex justify-between items-center mb-2">
                             <h4 class="font-bold text-lg text-gray-800">${cls.name}</h4>
                             <span class="text-sm bg-pastel-purple/20 text-pastel-purple px-2 py-1 rounded-full">
                                 ${rate.toFixed(1)}%
                             </span>
                         </div>
-                        <div class="flex justify-between items-center">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                             <div>
-                                <span class="text-sm text-gray-600">มาเรียน: </span>
-                                <span class="font-semibold text-green-600">${cls.present || 0}</span>
+                                <span class="text-xs text-gray-600">มาเรียน</span>
+                                <p class="font-semibold text-green-600">${cls.present || 0}</p>
                             </div>
                             <div>
-                                <span class="text-sm text-gray-600">ขาด: </span>
-                                <span class="font-semibold text-red-600">${cls.absent || 0}</span>
+                                <span class="text-xs text-gray-600">สาย</span>
+                                <p class="font-semibold text-yellow-600">${cls.late || 0}</p>
                             </div>
                             <div>
-                                <span class="text-sm text-gray-600">รวม: </span>
-                                <span class="font-semibold">${cls.total || (cls.present || 0) + (cls.absent || 0)}</span>
+                                <span class="text-xs text-gray-600">ลา</span>
+                                <p class="font-semibold text-blue-600">${cls.excused || 0}</p>
                             </div>
+                            <div>
+                                <span class="text-xs text-gray-600">ขาด</span>
+                                <p class="font-semibold text-red-600">${cls.absent || 0}</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-2 text-xs text-gray-600">
+                            <span>รวมทั้งหมด: <span class="font-semibold">${cls.total || 0}</span></span>
+                            <span>อัตราเข้าเรียน: <span class="font-semibold">${rate.toFixed(1)}%</span></span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
                             <div class="bg-gradient-to-r from-pastel-green to-pastel-mint h-2 rounded-full" 
@@ -575,11 +598,12 @@
                         <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
                             <i class="fas fa-info-circle text-2xl text-pastel-purple"></i>
                         </div>
-                        <p class="text-gray-600">ไม่พบข้อมูลสำหรับช่วงเวลาที่เลือก</p>
-                    </div>
+                        <p class="text-gray-600">ไม่พบข้อมูลสำหรับช่วงเวลาที่เลือก</p>                    </div>
                 `;
             }
-        }function updateClassroomStatsToday(classroomStats) {
+        }
+        
+        function updateClassroomStatsToday(classroomStats) {
             const container = document.getElementById('classroomStatsToday');
             container.innerHTML = ''; // Clear
             
@@ -623,13 +647,13 @@
                 classroomStats.forEach(stat => {
                     try {
                         const div = document.createElement('div');                        div.className = 'classroom-stat-card bg-white/80 rounded-xl p-4 shadow-md hover:bg-white transition-all duration-200';
-                        
-                        // Handle different possible property names
+                          // Handle different possible property names
                         const name = stat.classroomName || stat.name || 'Unknown Classroom';
                         const present = stat.present || 0;
                         const absent = stat.absent || 0;
                         const late = stat.late || 0;
-                        const total = stat.total || (present + absent + late);
+                        const excused = stat.excused || 0; // เพิ่มสถานะ "ลา"
+                        const total = stat.total || (present + absent + late + excused);
                         // Calculate rate if not provided, or use the provided rate
                         const rate = stat.rate !== undefined ? stat.rate : 
                                     (total > 0 ? ((present + late) / total * 100) : 0);
@@ -652,27 +676,29 @@
                                     <i class="fas fa-chalkboard-teacher text-white"></i>
                                 </div>
                                 <h4 class="font-bold text-lg text-gray-800">${name}</h4>
-                            </div>
-                            
-                            <div class="grid grid-cols-4 gap-2 mb-3">
+                            </div>                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                                 <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-lg p-2 text-center shadow-sm">
                                     <div class="text-lg font-bold text-gray-800">${present}</div>
                                     <div class="text-xs text-gray-700">มาเรียน</div>
-                                </div>
-                                <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-lg p-2 text-center shadow-sm">
-                                    <div class="text-lg font-bold text-gray-800">${absent}</div>
-                                    <div class="text-xs text-gray-700">ขาดเรียน</div>
                                 </div>
                                 <div class="bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-lg p-2 text-center shadow-sm">
                                     <div class="text-lg font-bold text-gray-800">${late}</div>
                                     <div class="text-xs text-gray-700">มาสาย</div>
                                 </div>
                                 <div class="bg-gradient-to-r from-pastel-blue to-pastel-sky rounded-lg p-2 text-center shadow-sm">
-                                    <div class="text-lg font-bold text-gray-800">${total}</div>
-                                    <div class="text-xs text-gray-700">ทั้งหมด</div>
+                                    <div class="text-lg font-bold text-gray-800">${excused}</div>
+                                    <div class="text-xs text-gray-700">ลา</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-lg p-2 text-center shadow-sm">
+                                    <div class="text-lg font-bold text-gray-800">${absent}</div>
+                                    <div class="text-xs text-gray-700">ขาดเรียน</div>
                                 </div>
                             </div>
                             
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-600">ทั้งหมด: <span class="font-semibold">${total}</span> คน</span>
+                                <span class="text-sm text-gray-600">อัตราเข้าเรียน: <span class="font-semibold text-pastel-purple">${rate.toFixed(1)}%</span></span>
+                            </div>                            
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-sm text-gray-600">อัตราการเข้าเรียน</span>
                                 <span class="text-sm font-semibold text-pastel-purple">${rate.toFixed(1)}%</span>
@@ -720,11 +746,12 @@
                         <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
                             <i class="fas fa-school text-2xl text-pastel-purple"></i>
                         </div>
-                        <p class="text-gray-600">ยังไม่มีการบันทึกการเข้าเรียนในวันนี้</p>
-                    </div>
+                        <p class="text-gray-600">ยังไม่มีการบันทึกการเข้าเรียนในวันนี้</p>                    </div>
                 `;
             }
-        }          function updateTopAttendees(attendees) {
+        }
+        
+        function updateTopAttendees(attendees) {
             const container = document.getElementById('topOverallAttendees');
             container.innerHTML = ''; // Clear
             

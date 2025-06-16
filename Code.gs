@@ -1119,12 +1119,11 @@ function getDashboardData(dateFromString, dateToString, authToken) {
     Logger.log(`Dashboard - Data counts: Classrooms: ${classrooms.length}, Students: ${students.length}, Attendance rows: ${attendanceData.length}`);
     if (classrooms.length === 0 || students.length === 0) {
       Logger.log('Warning: One or more critical data sets are empty! This may cause incorrect statistics.');
-    }
-
-    const stats = {
+    }    const stats = {
       totalPresentToday: 0,
       totalAbsentToday: 0,
       totalLateToday: 0,
+      totalExcusedToday: 0, // เพิ่มสถานะ "ลา"
       overallAttendanceRateToday: 0,
       overallClassroomBreakdown: [],
       topAttendees: []
@@ -1176,61 +1175,68 @@ function getDashboardData(dateFromString, dateToString, authToken) {
           stats.totalLateToday++;
           stats.totalPresentToday++; // Count late as present for overall stats
         }
+        // Check for excused status (ลา)
+        else if (status === 'excused' || status === 'ลา') {
+          stats.totalExcusedToday++;
+        }
         // Check for various absent status formats
-        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
+        else if (status === 'absent' || status === 'ขาด') {
           stats.totalAbsentToday++;
         }
-      }      // Today's classroom stats
+      }// Today's classroom stats
       if (isToday && classroomName) {
-        let classroomTodayStat = todayClassroomStatsMap.get(classroomName);
-        if (!classroomTodayStat) {
+        let classroomTodayStat = todayClassroomStatsMap.get(classroomName);        if (!classroomTodayStat) {
           classroomTodayStat = { 
             classroomName: classroomName, 
             present: 0, 
             late: 0,
+            excused: 0, // เพิ่มสถานะ "ลา"
             absent: 0, 
             total: 0 
           };
           todayClassroomStatsMap.set(classroomName, classroomTodayStat);
         }
         
-        // Check for various status formats with separated late count
+        // Check for various status formats with separated counts
         if (status === 'present' || status === 'มา') {
           classroomTodayStat.present++;
         } 
         else if (status === 'late' || status === 'สาย') {
           classroomTodayStat.late++;
-          // Don't increment present, we'll show late separately
         }
-        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
+        else if (status === 'excused' || status === 'ลา') {
+          classroomTodayStat.excused++;
+        }
+        else if (status === 'absent' || status === 'ขาด') {
           classroomTodayStat.absent++;
         }
         
         // Count in total if any recognized status
-        if (status === 'present' || status === 'late' || status === 'absent' || 
-            status === 'มา' || status === 'สาย' || status === 'ขาด' || status === 'ลา') {
+        if (status === 'present' || status === 'late' || status === 'excused' || status === 'absent' || 
+            status === 'มา' || status === 'สาย' || status === 'ลา' || status === 'ขาด') {
           classroomTodayStat.total++;
-        }
-      }      // Date range filtering for overall classroom breakdown and top attendees
+        }      }
+      
+      // Date range filtering for overall classroom breakdown and top attendees
       let isInDateRange = true;
       if (filterStartDate && recordDate < filterStartDate) isInDateRange = false;
       if (filterEndDate && recordDate > filterEndDate) isInDateRange = false;
 
-      if (isInDateRange && classroomName) {
-        // Overall classroom breakdown for selected range
+      if (isInDateRange && classroomName) {        // Overall classroom breakdown for selected range
         let classroomOverallStat = overallClassroomStatsMap.get(classroomName);
         if (!classroomOverallStat) {
           classroomOverallStat = { 
             name: classroomName, 
             present: 0, 
             late: 0,
+            excused: 0, // เพิ่มสถานะ "ลา"
             absent: 0, 
             total: 0 
           };
           overallClassroomStatsMap.set(classroomName, classroomOverallStat);
         }
         
-        // Check for various status formats with separated late count
+        // Check for various status formats with separated counts
         if (status === 'present' || status === 'มา') {
           classroomOverallStat.present++;
           
@@ -1247,13 +1253,16 @@ function getDashboardData(dateFromString, dateToString, authToken) {
             studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
           }
         }
-        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
+        else if (status === 'excused' || status === 'ลา') {
+          classroomOverallStat.excused++;
+        }
+        else if (status === 'absent' || status === 'ขาด') {
           classroomOverallStat.absent++;
         }
         
         // Count in total if any recognized status
-        if (status === 'present' || status === 'late' || status === 'absent' || 
-            status === 'มา' || status === 'สาย' || status === 'ขาด' || status === 'ลา') {
+        if (status === 'present' || status === 'late' || status === 'excused' || status === 'absent' || 
+            status === 'มา' || status === 'สาย' || status === 'ลา' || status === 'ขาด') {
           classroomOverallStat.total++;
         }
       }

@@ -46,13 +46,24 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-pastel-blue via-pastel-sky to-pastel-mint">
+<body class="min-h-screen bg-gradient-to-br from-pastel-purple via-pastel-blue to-pastel-sky">
+    <!-- Authentication Message Area -->
+    <div id="authMessageArea" class="hidden fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
+        <div class="text-center p-8 bg-white shadow-lg rounded-lg">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
+            <p id="authMessageText" class="text-gray-600 mb-6">You need to be logged in to access this page.</p>
+            <a id="authLoginLink" href="#" class="bg-pastel-purple text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90">
+                Go to Login
+            </a>
+        </div>
+    </div>
+    
     <!-- Header -->
     <header class="glass-effect blur-backdrop border-b border-white/20 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center">
+                    <div class="w-12 h-12 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center shadow-md">
                         <i class="fas fa-chart-pie text-white text-xl"></i>
                     </div>
                     <div>
@@ -61,6 +72,10 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <div class="text-right mr-4">
+                        <p class="text-sm text-gray-600">นักเรียนที่เข้าเรียนวันนี้</p>
+                        <p class="text-2xl font-bold text-pastel-purple" id="dashTotalPresent">0</p>
+                    </div>
                     <a href="#" 
                        id="navIndexLink"
                        onclick="navigateTo('index')" 
@@ -79,83 +94,157 @@
                 </div>
             </div>
         </div>
-    </header>
-
-    <div class="container mx-auto px-4 py-8">
+    </header>    <div class="container mx-auto px-4 py-8">
         <!-- Dashboard Section -->
         <div id="dashboardSection">
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+                <div class="glass-effect rounded-xl p-8 text-center">
+                    <div class="mb-4 relative">
+                        <div class="w-16 h-16 border-4 border-pastel-purple border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fas fa-chart-bar text-pastel-purple text-sm"></i>
+                        </div>
+                    </div>
+                    <p id="loadingMessage" class="text-lg font-medium text-gray-700">กำลังประมวลผล...</p>
+                    <p class="text-sm text-gray-500 mt-1">โปรดรอสักครู่</p>
+                </div>
+            </div>
+            
+            <!-- Main Grid Layout -->
             <div class="grid lg:grid-cols-2 gap-8">
                 <!-- Attendance Overview -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-chart-pie text-pastel-purple mr-3"></i>
                         ภาพรวมการเข้าเรียนวันนี้
                     </h2>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-xl p-4 text-center">
-                            <i class="fas fa-user-check text-3xl text-gray-700 mb-2"></i>
-                            <p class="text-2xl font-bold text-gray-800" id="dashTotalPresent">0</p>
-                            <p class="text-sm text-gray-600">มาเรียน</p>
+                      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <!-- Present Card -->
+                        <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-xl p-4 text-center shadow-lg transform transition-all duration-300 hover:scale-105 border border-white/50 relative overflow-hidden">
+                            <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/20 rounded-full"></div>
+                            <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                            <div class="w-16 h-16 mx-auto mb-2 bg-white/30 rounded-full flex items-center justify-center shadow-inner">
+                                <i class="fas fa-user-check text-green-700 text-2xl"></i>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800" id="dashPresentCount">0</p>
+                            <p class="text-sm font-medium text-gray-800 mt-1">มาเรียน</p>
                         </div>
-                        <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-xl p-4 text-center">
-                            <i class="fas fa-user-times text-3xl text-gray-700 mb-2"></i>
-                            <p class="text-2xl font-bold text-gray-800" id="dashTotalAbsent">0</p>
-                            <p class="text-sm text-gray-600">ขาดเรียน</p>
+                        
+                        <!-- Absent Card -->
+                        <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-xl p-4 text-center shadow-lg transform transition-all duration-300 hover:scale-105 border border-white/50 relative overflow-hidden">
+                            <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/20 rounded-full"></div>
+                            <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                            <div class="w-16 h-16 mx-auto mb-2 bg-white/30 rounded-full flex items-center justify-center shadow-inner">
+                                <i class="fas fa-user-times text-red-700 text-2xl"></i>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800" id="dashTotalAbsent">0</p>
+                            <p class="text-sm font-medium text-gray-800 mt-1">ขาดเรียน</p>
                         </div>
-                    </div>
-
-                    <div class="space-y-3">
-                        <div class="flex justify-between text-sm">
-                            <span>อัตราการเข้าเรียน</span>
-                            <span id="dashAttendanceRate" class="font-semibold">0%</span>
+                        
+                        <!-- Late Card -->
+                        <div class="bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-xl p-4 text-center shadow-lg transform transition-all duration-300 hover:scale-105 border border-white/50 relative overflow-hidden">
+                            <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/20 rounded-full"></div>
+                            <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                            <div class="w-16 h-16 mx-auto mb-2 bg-white/30 rounded-full flex items-center justify-center shadow-inner">
+                                <i class="fas fa-clock text-yellow-700 text-2xl"></i>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800" id="dashLateCount">0</p>
+                            <p class="text-sm font-medium text-gray-800 mt-1">มาสาย</p>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-4">
-                            <div id="dashAttendanceBar" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>                    <div class="bg-white/70 rounded-xl p-4 shadow-md border border-white/50">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center mr-2 shadow-sm">
+                                    <i class="fas fa-percentage text-white text-xs"></i>
+                                </div>
+                                <span class="font-medium text-gray-700">อัตราการเข้าเรียน</span>
+                            </div>
+                            <span id="dashAttendanceRate" class="text-xl font-bold text-pastel-purple">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-5 shadow-inner relative overflow-hidden">
+                            <div id="dashAttendanceBar" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-5 rounded-full transition-all duration-500 flex items-center justify-end px-2" style="width: 0%">
+                                <span class="text-xs font-bold text-white/90 drop-shadow-md" id="dashAttendanceBarText"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Classroom Statistics -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-chalkboard-teacher text-pastel-purple mr-3"></i>
                         สถิติแยกตามห้องเรียน (วันนี้)
                     </h2>
-                    <div id="classroomStatsToday" class="space-y-4 max-h-60 overflow-y-auto">
-                        <p class="text-gray-600 text-center py-8">กำลังโหลดข้อมูล...</p>
+                    <div id="classroomStatsToday" class="space-y-4 max-h-60 overflow-y-auto pr-2">
+                        <div class="flex flex-col items-center justify-center h-40">
+                            <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center animate-pulse">
+                                <i class="fas fa-spinner fa-spin text-2xl text-pastel-purple"></i>
+                            </div>
+                            <p class="text-gray-600">กำลังโหลดข้อมูล...</p>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Overall Classroom Statistics -->
-                <div class="glass-effect rounded-2xl p-8 lg:col-span-2">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <div class="glass-effect rounded-2xl p-8 lg:col-span-2 simple-hover shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-calendar-alt text-pastel-purple mr-3"></i>
                         สถิติห้องเรียน (ภาพรวม)
-                    </h2>
-                     <div class="mb-4 flex space-x-2">
-                        <input type="date" id="dateFrom" class="p-2 border rounded-lg">
-                        <input type="date" id="dateTo" class="p-2 border rounded-lg">
-                        <button onclick="loadOverallDashboardDataWithToken()" class="bg-pastel-blue text-white px-4 py-2 rounded-lg">โหลดข้อมูล</button>
-                    </div>
-                    <div id="overallClassroomStats" class="space-y-4 max-h-96 overflow-y-auto">
-                        <p class="text-gray-600 text-center py-8">เลือกช่วงวันที่เพื่อดูข้อมูล</p>
+                    </h2>                    <div class="mb-6 glass-effect p-5 rounded-xl flex flex-wrap md:flex-nowrap items-center gap-4 md:gap-6 shadow-md border border-white/30">
+                        <div class="w-full md:w-auto">
+                            <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-calendar-alt text-pastel-purple mr-2"></i>
+                                วันที่เริ่มต้น
+                            </label>
+                            <input type="date" id="dateFrom" 
+                                  class="p-3 border border-pastel-purple/40 rounded-lg w-full focus:ring-2 focus:ring-pastel-purple focus:outline-none shadow-sm bg-white/90 text-gray-700">
+                        </div>
+                        <div class="w-full md:w-auto">
+                            <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-calendar-check text-pastel-purple mr-2"></i>
+                                วันที่สิ้นสุด
+                            </label>
+                            <input type="date" id="dateTo" 
+                                  class="p-3 border border-pastel-purple/40 rounded-lg w-full focus:ring-2 focus:ring-pastel-purple focus:outline-none shadow-sm bg-white/90 text-gray-700">
+                        </div>
+                        <div class="w-full md:w-auto flex items-end md:ml-auto">
+                            <button onclick="loadOverallDashboardDataWithToken()" 
+                                class="w-full md:w-auto bg-gradient-to-r from-pastel-blue to-pastel-purple text-white font-semibold px-7 py-3 rounded-xl hover:shadow-xl transition-all duration-200 shadow-md flex items-center justify-center transform hover:scale-105">
+                                <i class="fas fa-sync-alt mr-2"></i>
+                                โหลดข้อมูล
+                            </button>
+                        </div>
+                    </div>                    <div id="overallClassroomStats" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        <div class="flex flex-col items-center justify-center h-40 bg-white/60 rounded-xl p-6 border border-white/50 shadow-sm">
+                            <div class="w-20 h-20 mx-auto mb-3 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center shadow-md">
+                                <i class="fas fa-calendar-alt text-2xl text-white"></i>
+                            </div>
+                            <p class="text-gray-700 font-medium">เลือกช่วงวันที่เพื่อดูข้อมูล</p>
+                            <p class="text-xs text-gray-500 mt-1">กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด แล้วกดปุ่ม "โหลดข้อมูล"</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Top Attendees (Overall) -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-trophy text-pastel-purple mr-3"></i>
-                        นักเรียนที่มาเรียนสม่ำเสมอ (ภาพรวม)
+                        นักเรียนที่มาเรียนสม่ำเสมอ
                     </h2>
-                    <div id="topOverallAttendees" class="space-y-3 max-h-60 overflow-y-auto">
-                        <p class="text-gray-600 text-center py-8">เลือกช่วงวันที่เพื่อดูข้อมูล</p>
+                    <div id="topOverallAttendees" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                        <div class="flex flex-col items-center justify-center h-40">
+                            <div class="w-16 h-16 mx-auto mb-3 bg-pastel-yellow/30 rounded-full flex items-center justify-center">
+                                <i class="fas fa-medal text-2xl text-pastel-purple"></i>
+                            </div>
+                            <p class="text-gray-600">เลือกช่วงวันที่เพื่อดูข้อมูล</p>
+                        </div>
                     </div>
                 </div>
-                 <!-- Daily Stats (Last 7 days) -->
-                <div class="glass-effect rounded-2xl p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                
+                <!-- Daily Stats (Last 7 days) -->
+                <div class="glass-effect rounded-2xl p-8 simple-hover shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                         <i class="fas fa-calendar-day text-pastel-purple mr-3"></i>
                         สถิติรายวัน (7 วันล่าสุด)
                     </h2>
@@ -195,9 +284,29 @@
             document.body.appendChild(a); // Link must be in the document to be clicked
             a.click();
             document.body.removeChild(a); // Clean up the temporary link
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
+        }        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard loading...');
+            
+            // Check that all critical UI elements are present
+            const criticalElements = [
+                'dashTotalPresent', 
+                'dashTotalAbsent', 
+                'dashAttendanceRate', 
+                'dashAttendanceBar',
+                'classroomStatsToday', 
+                'overallClassroomStats', 
+                'topOverallAttendees',
+                'dailyAttendanceChart',
+                'dailyStatsFallback',
+                'dateFrom',
+                'dateTo'
+            ];
+            
+            let missingElements = criticalElements.filter(id => !document.getElementById(id));
+            if (missingElements.length > 0) {
+                console.error('Missing UI elements:', missingElements);
+            }
+            
             currentToken = localStorage.getItem('jwtToken');
             const storedUserInfo = localStorage.getItem('userInfo');
 
@@ -239,13 +348,22 @@
                     .getUserDataFromToken(currentToken);
             }
         });
-
+        
         function initializeDashboard() {
             if (!currentUser) {
                 redirectToLogin('User data not available. Please login.');
                 return;
             }
             console.log('Dashboard User:', currentUser.username, 'Role:', currentUser.role);
+            
+            // Set default dates for the date range selector
+            const today = new Date();
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(today.getMonth() - 1);
+            
+            document.getElementById('dateFrom').value = formatDateForInput(oneMonthAgo);
+            document.getElementById('dateTo').value = formatDateForInput(today);
+            
             updateUserInfoDisplay();
             setupLogoutButton();
             setupNavigation();
@@ -253,6 +371,10 @@
             loadDailyStatsChartData();
             updateDateTime();
             setInterval(updateDateTime, 1000);
+        }
+        
+        function formatDateForInput(date) {
+            return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
         }
 
         function updateUserInfoDisplay() {
@@ -315,29 +437,62 @@
         function handleAuthError(errorMessage, isExpired) {
             console.error('Auth Error:', errorMessage);
             showErrorModal('Authentication Error: ' + errorMessage + (isExpired ? ' (Token Expired)' : ''), true);
+        }        function setLoadingState(isLoading, message = 'กำลังประมวลผล...') {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const loadingMessage = document.getElementById('loadingMessage');
+            
+            if (!loadingIndicator || !loadingMessage) {
+                console.warn('Loading indicator elements not found');
+                console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
+                return;
+            }
+            
+            if (isLoading) {
+                loadingMessage.textContent = message;
+                loadingIndicator.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden'); // Prevent scrolling while loading
+            } else {
+                loadingIndicator.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+            
+            console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
         }
-
-        function setLoadingState(isLoading, message = 'Loading...') {
-            // A more generic loading indicator might be needed for the dashboard
-            // For now, we can log or use a simple visual cue if one exists
-            console.log(isLoading ? `Loading: ${message}` : 'Loading complete.');
-            // Example: If you have a global loading overlay
-            // const overlay = document.getElementById('globalLoadingOverlay');
-            // if (overlay) overlay.classList.toggle('hidden', !isLoading);
-        }
-
+        
         function loadOverallDashboardDataWithToken() {
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
             
             setLoadingState(true, 'Loading dashboard data...');
+            console.log('Requesting dashboard data with token:', currentToken ? 'Token exists' : 'No token!');
+            
             google.script.run
                 .withSuccessHandler(function(response) {
                     setLoadingState(false);
+                    console.log('Dashboard data response:', response);
+                    
                     if (response.success) {
-                        updateDashboardUI(response.stats); 
-                        updateClassroomStatsToday(response.todayClassroomStats); 
-                        updateTopAttendees(response.topAttendees); 
+                        if (!response.stats) {
+                            console.error('Dashboard data response is missing stats object');
+                            showErrorModal('Dashboard data is incomplete. Please try again.');
+                            return;
+                        }
+                        
+                        updateDashboardUI(response.stats);
+                        
+                        if (response.todayClassroomStats) {
+                            updateClassroomStatsToday(response.todayClassroomStats);
+                        } else {
+                            console.warn('Missing todayClassroomStats in response');
+                            updateClassroomStatsToday([]);
+                        }
+                        
+                        if (response.stats.topAttendees) {
+                            updateTopAttendees(response.stats.topAttendees);
+                        } else {
+                            console.warn('Missing topAttendees in response');
+                            updateTopAttendees([]);
+                        }
                     } else {
                         handleAuthError(response.error || 'Failed to load dashboard data.', response.expired);
                     }
@@ -346,132 +501,512 @@
                     setLoadingState(false);
                     handleAuthError('Error loading dashboard data: ' + error.message);
                 })
-                .getDashboardData(dateFrom, dateTo, currentToken); // New Code.gs function needed
-        }
-
-        function updateDashboardUI(stats) {
+                .getDashboardData(dateFrom, dateTo, currentToken);
+        }function updateDashboardUI(stats) {
             if (!stats) return;
+            console.log('Updating dashboard UI with stats:', stats);
+            
+            // Update dashboard header count
             document.getElementById('dashTotalPresent').textContent = stats.totalPresentToday || 0;
+            
+            // Update dashboard cards
+            document.getElementById('dashPresentCount').textContent = stats.totalPresentToday || 0;
             document.getElementById('dashTotalAbsent').textContent = stats.totalAbsentToday || 0;
-            const rate = stats.overallAttendanceRateToday || 0;
+            document.getElementById('dashLateCount').textContent = stats.totalLateToday || 0;
+              const rate = stats.overallAttendanceRateToday || 0;
             document.getElementById('dashAttendanceRate').textContent = `${rate.toFixed(1)}%`;
-            document.getElementById('dashAttendanceBar').style.width = `${rate}%`;
+            
+            // Also update the text inside the progress bar if the percentage is high enough to show it
+            const attendanceBarText = document.getElementById('dashAttendanceBarText');
+            if (rate >= 15) { // Only show text if bar is wide enough
+                attendanceBarText.textContent = `${rate.toFixed(1)}%`;
+                attendanceBarText.classList.remove('hidden');
+            } else {
+                attendanceBarText.classList.add('hidden');
+            }
+            
+            // Animate progress bar for visual appeal
+            document.getElementById('dashAttendanceBar').style.width = '0%';
+            setTimeout(() => {
+                document.getElementById('dashAttendanceBar').style.width = `${rate}%`;
+            }, 200);
             
             // For overall classroom stats (if part of the same response or separate)
             const overallStatsContainer = document.getElementById('overallClassroomStats');
             overallStatsContainer.innerHTML = ''; // Clear
+            
             if (stats.overallClassroomBreakdown && stats.overallClassroomBreakdown.length > 0) {
                 stats.overallClassroomBreakdown.forEach(cls => {
-                    const p = document.createElement('p');
-                    p.textContent = `${cls.name}: Present ${cls.present}, Absent ${cls.absent} (Rate: ${cls.rate.toFixed(1)}%)`;
-                    overallStatsContainer.appendChild(p);
+                    const card = document.createElement('div');
+                    card.className = 'bg-white/70 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 mb-3';
+                    
+                    const rate = cls.rate !== undefined ? cls.rate : 
+                               (cls.total > 0 ? ((cls.present || 0) / cls.total * 100) : 0);
+                    
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-lg text-gray-800">${cls.name}</h4>
+                            <span class="text-sm bg-pastel-purple/20 text-pastel-purple px-2 py-1 rounded-full">
+                                ${rate.toFixed(1)}%
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-sm text-gray-600">มาเรียน: </span>
+                                <span class="font-semibold text-green-600">${cls.present || 0}</span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-600">ขาด: </span>
+                                <span class="font-semibold text-red-600">${cls.absent || 0}</span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-600">รวม: </span>
+                                <span class="font-semibold">${cls.total || (cls.present || 0) + (cls.absent || 0)}</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                            <div class="bg-gradient-to-r from-pastel-green to-pastel-mint h-2 rounded-full" 
+                                 style="width: ${rate}%"></div>
+                        </div>
+                    `;
+                    overallStatsContainer.appendChild(card);
                 });
             } else {
-                overallStatsContainer.innerHTML = '<p class="text-gray-600 text-center py-4">No overall data for selected period.</p>';
+                overallStatsContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40">
+                        <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
+                            <i class="fas fa-info-circle text-2xl text-pastel-purple"></i>
+                        </div>
+                        <p class="text-gray-600">ไม่พบข้อมูลสำหรับช่วงเวลาที่เลือก</p>
+                    </div>
+                `;
             }
-        }
-
-        function updateClassroomStatsToday(classroomStats) {
+        }function updateClassroomStatsToday(classroomStats) {
             const container = document.getElementById('classroomStatsToday');
             container.innerHTML = ''; // Clear
-            if (classroomStats && classroomStats.length > 0) {
+            
+            console.log('Updating classroom stats with:', classroomStats);
+            
+            if (!classroomStats) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40">
+                        <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
+                            <i class="fas fa-info-circle text-2xl text-pastel-purple"></i>
+                        </div>
+                        <p class="text-gray-600">ไม่พบข้อมูลห้องเรียนสำหรับวันนี้</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (classroomStats.length > 0) {
+                // Create a search box for classrooms
+                const searchBox = document.createElement('div');
+                searchBox.className = 'mb-4 relative';
+                searchBox.innerHTML = `
+                    <input 
+                        id="classroomSearch" 
+                        type="text" 
+                        placeholder="ค้นหาห้องเรียน..." 
+                        class="w-full px-4 py-3 pr-10 border-2 border-pastel-blue/20 rounded-xl focus:border-pastel-purple focus:outline-none bg-white/80"
+                        oninput="filterClassrooms()"
+                    >
+                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                `;
+                container.appendChild(searchBox);
+                
+                const statsContainer = document.createElement('div');
+                statsContainer.id = 'classroomStatsList';
+                statsContainer.className = 'space-y-3';
+                container.appendChild(statsContainer);
+                
                 classroomStats.forEach(stat => {
-                    const div = document.createElement('div');
-                    div.className = 'p-3 bg-white/70 rounded-lg';
-                    div.innerHTML = `
-                        <h4 class="font-semibold text-gray-700">${stat.classroomName}</h4>
-                        <div class="flex justify-between text-sm">
-                            <span>Present: <strong class="text-green-600">${stat.present}</strong></span>
-                            <span>Absent: <strong class="text-red-600">${stat.absent}</strong></span>
-                            <span>Rate: <strong>${stat.rate.toFixed(1)}%</strong></span>
-                        </div>`;
-                    container.appendChild(div);
+                    try {
+                        const div = document.createElement('div');                        div.className = 'classroom-stat-card bg-white/80 rounded-xl p-4 shadow-md hover:bg-white transition-all duration-200';
+                        
+                        // Handle different possible property names
+                        const name = stat.classroomName || stat.name || 'Unknown Classroom';
+                        const present = stat.present || 0;
+                        const absent = stat.absent || 0;
+                        const late = stat.late || 0;
+                        const total = stat.total || (present + absent + late);
+                        // Calculate rate if not provided, or use the provided rate
+                        const rate = stat.rate !== undefined ? stat.rate : 
+                                    (total > 0 ? ((present + late) / total * 100) : 0);
+                        
+                        // Determine a color theme based on attendance rate
+                        let colorTheme;
+                        if (rate >= 90) {
+                            colorTheme = 'from-pastel-green to-pastel-mint';
+                        } else if (rate >= 70) {
+                            colorTheme = 'from-pastel-blue to-pastel-sky';
+                        } else if (rate >= 50) {
+                            colorTheme = 'from-pastel-yellow to-pastel-peach';
+                        } else {
+                            colorTheme = 'from-pastel-coral to-pastel-pink';
+                        }
+                        
+                        div.innerHTML = `
+                            <div class="flex items-center mb-3">
+                                <div class="w-10 h-10 bg-gradient-to-r ${colorTheme} rounded-full flex items-center justify-center mr-3 shadow-sm">
+                                    <i class="fas fa-chalkboard-teacher text-white"></i>
+                                </div>
+                                <h4 class="font-bold text-lg text-gray-800">${name}</h4>
+                            </div>
+                            
+                            <div class="grid grid-cols-4 gap-2 mb-3">
+                                <div class="bg-gradient-to-r from-pastel-green to-pastel-mint rounded-lg p-2 text-center shadow-sm">
+                                    <div class="text-lg font-bold text-gray-800">${present}</div>
+                                    <div class="text-xs text-gray-700">มาเรียน</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-pastel-coral to-pastel-pink rounded-lg p-2 text-center shadow-sm">
+                                    <div class="text-lg font-bold text-gray-800">${absent}</div>
+                                    <div class="text-xs text-gray-700">ขาดเรียน</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-lg p-2 text-center shadow-sm">
+                                    <div class="text-lg font-bold text-gray-800">${late}</div>
+                                    <div class="text-xs text-gray-700">มาสาย</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-pastel-blue to-pastel-sky rounded-lg p-2 text-center shadow-sm">
+                                    <div class="text-lg font-bold text-gray-800">${total}</div>
+                                    <div class="text-xs text-gray-700">ทั้งหมด</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm text-gray-600">อัตราการเข้าเรียน</span>
+                                <span class="text-sm font-semibold text-pastel-purple">${rate.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                <div class="bg-gradient-to-r ${colorTheme} h-3 rounded-full transition-all duration-500" 
+                                     style="width: ${rate}%"></div>
+                            </div>
+                        `;
+                        statsContainer.appendChild(div);
+                    } catch (e) {
+                        console.error('Error processing classroom stat:', e, stat);
+                    }
                 });
+                
+                // Add filter function to the page
+                if (!window.filterClassrooms) {
+                    window.filterClassrooms = function() {
+                        const searchInput = document.getElementById('classroomSearch');
+                        if (!searchInput) return;
+                        
+                        const searchTerm = searchInput.value.toLowerCase().trim();
+                        const classroomCards = document.querySelectorAll('.classroom-stat-card');
+                        
+                        classroomCards.forEach(card => {
+                            const classroomName = card.querySelector('h4').textContent.toLowerCase();
+                            if (searchTerm === '' || classroomName.includes(searchTerm)) {
+                                card.classList.remove('hidden');
+                            } else {
+                                card.classList.add('hidden');
+                            }
+                        });
+                    };
+                }
+                
             } else {
-                container.innerHTML = '<p class="text-gray-600 text-center py-4">No classroom attendance recorded today.</p>';
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40">
+                        <div class="w-16 h-16 mx-auto mb-3 bg-pastel-blue/30 rounded-full flex items-center justify-center">
+                            <i class="fas fa-school text-2xl text-pastel-purple"></i>
+                        </div>
+                        <p class="text-gray-600">ยังไม่มีการบันทึกการเข้าเรียนในวันนี้</p>
+                    </div>
+                `;
+            }
+        }          function updateTopAttendees(attendees) {
+            const container = document.getElementById('topOverallAttendees');
+            container.innerHTML = ''; // Clear
+            
+            console.log('Updating top attendees with:', attendees);
+            
+            if (!attendees) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40">
+                        <div class="w-16 h-16 mx-auto mb-3 bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-full flex items-center justify-center shadow-md animate-pulse">
+                            <i class="fas fa-medal text-2xl text-white"></i>
+                        </div>
+                        <p class="text-gray-600">ไม่พบข้อมูลนักเรียน</p>
+                        <p class="text-xs text-gray-500 mt-1">เลือกช่วงวันที่เพื่อดูรายชื่อนักเรียนที่มาเรียนสม่ำเสมอ</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (attendees.length > 0) {
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'mb-4 bg-gradient-to-r from-pastel-purple/30 to-pastel-blue/30 p-3 rounded-xl';
+                titleDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-full flex items-center justify-center mr-2 shadow-sm">
+                            <i class="fas fa-trophy text-white text-sm"></i>
+                        </div>
+                        <p class="text-sm text-gray-700 font-medium">นักเรียนที่มาเรียนสม่ำเสมอในช่วงที่เลือก</p>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 px-2">
+                        <span>ชื่อ-นามสกุล</span>
+                        <span>จำนวนวัน</span>
+                    </div>
+                `;
+                container.appendChild(titleDiv);
+                
+                // Create a wrapper for the list
+                const listWrapper = document.createElement('div');
+                listWrapper.className = 'space-y-2';
+                container.appendChild(listWrapper);
+                  attendees.forEach((att, index) => {
+                    const studentCard = document.createElement('div');
+                    studentCard.className = 'flex justify-between items-center bg-white/80 p-4 rounded-xl hover:bg-white transition-all duration-200 shadow-md border border-white/50 transform hover:scale-102';
+                    
+                    // Handle potential differences in data structure (studentName vs name)
+                    const studentName = att.studentName || att.name || 'Unknown Student';
+                    const daysPresent = att.daysPresent || att.days || 0;
+                    const studentId = att.studentId || att.id || '';
+                    
+                    // Create different badge styles for top attendees
+                    let rankBadge = '';
+                    let rankClass = '';
+                    let iconClass = '';
+                    
+                    if (index === 0) {
+                        rankBadge = '#1';
+                        rankClass = 'from-yellow-300 to-amber-400 text-amber-800';
+                        iconClass = 'fa-crown text-amber-500';
+                    } else if (index === 1) {
+                        rankBadge = '#2';
+                        rankClass = 'from-gray-300 to-gray-400 text-gray-700';
+                        iconClass = 'fa-medal text-gray-500';
+                    } else if (index === 2) {
+                        rankBadge = '#3';
+                        rankClass = 'from-amber-600 to-amber-700 text-amber-800';
+                        iconClass = 'fa-award text-amber-600';
+                    } else {
+                        rankBadge = `#${index + 1}`;
+                        rankClass = 'from-pastel-purple/30 to-pastel-blue/30 text-pastel-purple';
+                        iconClass = 'fa-user-check text-pastel-purple';
+                    }
+                    
+                    studentCard.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-r ${rankClass} flex items-center justify-center mr-3 shadow-sm">
+                                <i class="fas ${iconClass}"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center">
+                                    <span class="bg-gradient-to-r ${rankClass} text-xs px-2 py-0.5 rounded-full font-bold mr-2">${rankBadge}</span>
+                                    <p class="font-medium text-gray-800">${studentName}</p>
+                                </div>
+                                <p class="text-xs text-gray-500">${studentId ? 'รหัส: ' + studentId : ''}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="bg-gradient-to-r from-pastel-green to-pastel-mint px-3 py-1.5 rounded-lg shadow-sm">
+                                <span class="font-bold text-gray-800">${daysPresent}</span>
+                                <span class="text-sm text-gray-700"> วัน</span>
+                            </div>
+                        </div>
+                    `;
+                    listWrapper.appendChild(studentCard);
+                });
+            } else {                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40 bg-white/60 rounded-xl p-6 border border-white/50 shadow-sm">
+                        <div class="w-20 h-20 mx-auto mb-3 bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-full flex items-center justify-center shadow-md">
+                            <i class="fas fa-info-circle text-2xl text-white"></i>
+                        </div>
+                        <p class="text-gray-700 font-medium">ไม่พบข้อมูลนักเรียนในช่วงที่เลือก</p>
+                        <p class="text-xs text-gray-500 mt-1">ลองเลือกช่วงเวลาที่มีการบันทึกการเข้าเรียน</p>
+                    </div>
+                `;
             }
         }
         
-        function updateTopAttendees(attendees) {
-            const container = document.getElementById('topOverallAttendees');
-            container.innerHTML = ''; // Clear
-            if (attendees && attendees.length > 0) {
-                attendees.forEach(att => {
-                    const p = document.createElement('p');
-                    p.className = 'text-sm text-gray-700';
-                    p.innerHTML = `<strong>${att.studentName}</strong>: ${att.daysPresent} days present`;
-                    container.appendChild(p);
-                });
-            } else {
-                container.innerHTML = '<p class="text-gray-600 text-center py-4">No top attendee data for selected period.</p>';
-            }
-        }
-
         function loadDailyStatsChartData() {
             setLoadingState(true, 'Loading daily chart...');
+            console.log('Requesting daily stats with token:', currentToken ? 'Token exists' : 'No token!');
+            
+            if (!currentToken) {
+                console.warn('WARNING: Token is missing for loadDailyStatsChartData call! Trying to recover...');
+                currentToken = localStorage.getItem('jwtToken'); 
+                console.log('Recovery attempt result:', currentToken ? 'Token recovered' : 'Still no token');
+                
+                if (!currentToken) {
+                    setLoadingState(false);
+                    document.getElementById('dailyStatsFallback').textContent = 'Authentication error: Missing token';
+                    document.getElementById('dailyStatsFallback').classList.remove('hidden');
+                    handleAuthError('Missing authentication token. Please try logging in again.');
+                    return;
+                }
+            }
+            
             google.script.run
                 .withSuccessHandler(function(response){
                     setLoadingState(false);
+                    console.log('Daily stats response:', response);
+                    
                     if(response.success && response.dailyStats){
                         renderDailyAttendanceChart(response.dailyStats);
                         document.getElementById('dailyStatsFallback').classList.add('hidden');
                     } else {
                         document.getElementById('dailyStatsFallback').textContent = response.error || 'Could not load chart data.';
                         document.getElementById('dailyStatsFallback').classList.remove('hidden');
-                        if(!response.success) handleAuthError(response.error, response.expired);
+                        
+                        if(!response.success) {
+                            console.error('Failed to load daily stats:', response.error);
+                            if (response.expired) {
+                                handleAuthError(response.error || 'Authentication expired', response.expired);
+                            }
+                        }
                     }
                 })
                 .withFailureHandler(function(err){
                     setLoadingState(false);
-                    document.getElementById('dailyStatsFallback').textContent = 'Error loading chart: ' + err.message;
+                    console.error('Error in daily stats chart:', err);
+                    document.getElementById('dailyStatsFallback').textContent = 'Error loading chart: ' + (err.message || 'Unknown error');
                     document.getElementById('dailyStatsFallback').classList.remove('hidden');
-                    handleAuthError('Error loading chart: ' + err.message);
+                    // Don't show auth error modal for chart failure, just log it
+                    console.error('Error loading chart:', err);
                 })
                 .getDailyAttendanceStats(7, currentToken); // Get stats for last 7 days
-        }
-
-        var dailyChartInstance = null; // To keep track of the chart instance
+        }        var dailyChartInstance = null; // To keep track of the chart instance
         function renderDailyAttendanceChart(dailyData) {
-            const ctx = document.getElementById('dailyAttendanceChart').getContext('2d');
-            if (dailyChartInstance) {
-                dailyChartInstance.destroy(); // Destroy previous chart instance if exists
-            }
-            const labels = dailyData.map(d => new Date(d.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }));
-            const presentData = dailyData.map(d => d.present);
-            const absentData = dailyData.map(d => d.absent);
-
-            dailyChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'มาเรียน',
-                            data: presentData,
-                            backgroundColor: 'rgba(75, 192, 192, 0.5)', // Pastel Green
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            borderWidth: 1
+            try {
+                console.log('Rendering chart with daily data:', dailyData);
+                
+                if (!dailyData || dailyData.length === 0) {
+                    document.getElementById('dailyStatsFallback').textContent = 'No data available for chart.';
+                    document.getElementById('dailyStatsFallback').classList.remove('hidden');
+                    return;
+                }
+                
+                const canvas = document.getElementById('dailyAttendanceChart');
+                if (!canvas) {
+                    console.error('Chart canvas element not found!');
+                    return;
+                }
+                
+                const ctx = canvas.getContext('2d');
+                
+                if (dailyChartInstance) {
+                    dailyChartInstance.destroy(); // Destroy previous chart instance if exists
+                }
+                
+                // Format dates and extract data
+                const labels = dailyData.map(d => {
+                    try {
+                        return new Date(d.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
+                    } catch (e) {
+                        console.warn('Error formatting date:', d.date, e);
+                        return 'Invalid date';
+                    }
+                });
+                
+                const presentData = dailyData.map(d => Number(d.present) || 0); // Ensure numbers
+                const absentData = dailyData.map(d => Number(d.absent) || 0);   // Ensure numbers
+                  // Create new chart
+                dailyChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'มาเรียน',
+                                data: presentData,
+                                backgroundColor: 'rgba(186, 255, 201, 0.7)', // Matching index pastel green
+                                borderColor: 'rgba(150, 230, 161, 1)',
+                                borderWidth: 1,
+                                borderRadius: 6,
+                                hoverBackgroundColor: 'rgba(186, 255, 201, 0.9)',
+                                barPercentage: 0.7
+                            },
+                            {
+                                label: 'ขาดเรียน',
+                                data: absentData,
+                                backgroundColor: 'rgba(255, 179, 186, 0.7)', // Matching index pastel coral
+                                borderColor: 'rgba(242, 145, 155, 1)',
+                                borderWidth: 1,
+                                borderRadius: 6,
+                                hoverBackgroundColor: 'rgba(255, 179, 186, 0.9)',
+                                barPercentage: 0.7
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20,
+                                    font: {
+                                        family: "'Kanit', sans-serif",
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                titleColor: '#333',
+                                bodyColor: '#666',
+                                bodyFont: {
+                                    family: "'Kanit', sans-serif"
+                                },
+                                borderColor: 'rgba(225, 186, 255, 0.5)',
+                                borderWidth: 1,
+                                padding: 10,
+                                boxPadding: 5,
+                                usePointStyle: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.y;
+                                        return `${label}: ${value} คน`;
+                                    }
+                                }
+                            }
                         },
-                        {
-                            label: 'ขาดเรียน',
-                            data: absentData,
-                            backgroundColor: 'rgba(255, 99, 132, 0.5)', // Pastel Red
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 }
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { 
+                                    stepSize: 1,
+                                    font: {
+                                        family: "'Kanit', sans-serif"
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(200, 200, 200, 0.2)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    font: {
+                                        family: "'Kanit', sans-serif"
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
                         }
                     }
-                }
-            });
+                });
+                
+                // Hide the fallback message
+                document.getElementById('dailyStatsFallback').classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Error rendering chart:', error);
+                document.getElementById('dailyStatsFallback').textContent = 'Error rendering chart: ' + error.message;
+                document.getElementById('dailyStatsFallback').classList.remove('hidden');
+            }
         }
 
         function updateDateTime() {
@@ -481,12 +1016,13 @@
         }
 
         // --- Error Modal --- (Shared with index.html, ensure it's defined or include if separate)
+        
         function showErrorModal(message, isAuthError = false) {
             document.getElementById('errorContent').textContent = message;
             document.getElementById('errorModal').classList.remove('hidden');
             const closeButton = document.getElementById('errorModal').querySelector('button');
             if (isAuthError) {
-                closeButton.onclick = function() { closeModalAndLogout(); };
+                closeButton.onclick = function() { closeModalAndMaybeLogout(); };
             } else {
                 closeButton.onclick = function() { closeModal(); };
             }
@@ -494,6 +1030,11 @@
 
         function closeModal() {
             document.getElementById('errorModal').classList.add('hidden');
+        }
+
+        function closeModalAndLogout() {
+            closeModal();
+            redirectToLogin('Your session is no longer valid. Please login again.');
         }
 
         function closeModalAndMaybeLogout() { // Renamed to be more specific
@@ -509,12 +1050,10 @@
             if(isLikelyAuthError || isExpiredToken){
                 redirectToLogin('Your session is no longer valid. Please login again.');
             }
-        }
-
-        // Assumed new Code.gs functions:
+        }        // Assumed new Code.gs functions:
         // google.script.run.getDashboardData(dateFrom, dateTo, currentToken);
         // google.script.run.getDailyAttendanceStats(days, currentToken);
-
+          // We already have closeModalAndMaybeLogout, so we don't need closeModalAndLogout
     </script>
 </body>
 </html>

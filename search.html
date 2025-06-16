@@ -58,8 +58,7 @@
     </div>
 
     <!-- Main Content Wrapper -->
-    <div id="mainContentWrapper">
-        <!-- Header -->
+    <div id="mainContentWrapper">        <!-- Header -->
         <header class="glass-effect blur-backdrop border-b border-white/20 sticky top-0 z-50">
             <div class="container mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
@@ -88,7 +87,7 @@
                                 href="#" 
                                 id="navDashboardLink"
                                 onclick="navigateTo('dashboard')" 
-                                class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70"
+                                class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70 hidden"
                             >
                                 <i class="fas fa-chart-pie mr-1"></i>
                                 Dashboard
@@ -97,7 +96,7 @@
                                 href="#" 
                                 id="navSearchLink"
                                 onclick="navigateTo('search')" 
-                                class="px-4 py-2 rounded-lg font-semibold bg-pastel-sky text-blue-800"
+                                class="px-4 py-2 rounded-lg font-semibold bg-pastel-green text-gray-800"
                             >
                                 <i class="fas fa-search mr-1"></i>
                                 ค้นหา
@@ -105,11 +104,11 @@
                         </div>
                         <div id="userInfoDisplay" class="text-sm text-gray-700"></div>
                         <button 
-                            id="logoutButton" 
-                            class="hidden bg-gradient-to-r from-pastel-coral to-pastel-pink text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+                            id="logoutButton"
+                            class="px-4 py-2 rounded-lg font-semibold bg-pastel-coral text-gray-800 hover:opacity-90 hidden"
                         >
                             <i class="fas fa-sign-out-alt mr-1"></i>
-                            Logout
+                            ออกจากระบบ
                         </button>
                     </div>
                 </div>
@@ -299,9 +298,7 @@
                         .logoutUser(currentToken);
                 });
             }
-        }
-
-        function setupNavigation() {
+        }        function setupNavigation() {
             const navIndexLink = document.getElementById('navIndexLink');
             const navDashboardLink = document.getElementById('navDashboardLink');
             const navSearchLink = document.getElementById('navSearchLink');
@@ -311,10 +308,17 @@
             }
             if (navDashboardLink) {
                 navDashboardLink.onclick = function(e) { e.preventDefault(); navigateTo('dashboard'); };
+                // Show dashboard link only if admin/teacher
+                if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'teacher')) {
+                    navDashboardLink.classList.remove('hidden'); 
+                } else {
+                    navDashboardLink.classList.add('hidden');
+                }
             }
             if (navSearchLink) {
                 navSearchLink.onclick = function(e) { e.preventDefault(); navigateTo('search'); };
             }
+            // Search link is current page - no special handling needed
         }
 
         function navigateTo(page) {

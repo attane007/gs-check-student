@@ -890,12 +890,12 @@
                 }
             }
             
-            google.script.run
-                .withSuccessHandler(function(response){
+            google.script.run                .withSuccessHandler(function(response){
                     setLoadingState(false);
                     console.log('Daily stats response:', response);
                     
                     if(response.success && response.dailyStats){
+                        console.log('Daily stats data received:', JSON.stringify(response.dailyStats, null, 2));
                         renderDailyAttendanceChart(response.dailyStats);
                         document.getElementById('dailyStatsFallback').classList.add('hidden');
                     } else {
@@ -919,10 +919,13 @@
                     console.error('Error loading chart:', err);
                 })
                 .getDailyAttendanceStats(7, currentToken); // Get stats for last 7 days
-        }        var dailyChartInstance = null; // To keep track of the chart instance
+        }
+        
+        var dailyChartInstance = null; // To keep track of the chart instance
+        
         function renderDailyAttendanceChart(dailyData) {
             try {
-                console.log('Rendering chart with daily data:', dailyData);
+                console.log('🎯 Rendering chart with daily data:', JSON.stringify(dailyData, null, 2));
                 
                 if (!dailyData || dailyData.length === 0) {
                     document.getElementById('dailyStatsFallback').textContent = 'No data available for chart.';
@@ -941,8 +944,7 @@
                 if (dailyChartInstance) {
                     dailyChartInstance.destroy(); // Destroy previous chart instance if exists
                 }
-                
-                // Format dates and extract data
+                  // Format dates and extract data
                 const labels = dailyData.map(d => {
                     try {
                         return new Date(d.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
@@ -950,16 +952,19 @@
                         console.warn('Error formatting date:', d.date, e);
                         return 'Invalid date';
                     }
-                });
+                });                // Combine present and late as "เข้าแถว" (lined up)
+                const presentData = dailyData.map(d => (Number(d.present) || 0) + (Number(d.late) || 0));
+                // Keep absent separate as "ขาด" (absent) - excused is separate
+                const absentData = dailyData.map(d => Number(d.absent) || 0);
+                // Add excused data as separate category
+                const excusedData = dailyData.map(d => Number(d.excused) || 0);
                 
-                const presentData = dailyData.map(d => Number(d.present) || 0); // Ensure numbers
-                const absentData = dailyData.map(d => Number(d.absent) || 0);   // Ensure numbers
+                console.log('Chart data - Present+Late:', presentData, 'Absent:', absentData, 'Excused:', excusedData);
                   // Create new chart
                 dailyChartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: labels,
-                        datasets: [
+                        labels: labels,                        datasets: [
                             {
                                 label: 'เข้าแถว',
                                 data: presentData,
@@ -969,15 +974,24 @@
                                 borderRadius: 6,
                                 hoverBackgroundColor: 'rgba(186, 255, 201, 0.9)',
                                 barPercentage: 0.7
-                            },
-                            {
-                                label: 'ไม่เข้าแถว',
+                            },                            {
+                                label: 'ขาด',
                                 data: absentData,
                                 backgroundColor: 'rgba(255, 179, 186, 0.7)', // Matching index pastel coral
                                 borderColor: 'rgba(242, 145, 155, 1)',
                                 borderWidth: 1,
                                 borderRadius: 6,
                                 hoverBackgroundColor: 'rgba(255, 179, 186, 0.9)',
+                                barPercentage: 0.7
+                            },
+                            {
+                                label: 'ลา',
+                                data: excusedData,
+                                backgroundColor: 'rgba(186, 225, 255, 0.7)', // Matching pastel blue
+                                borderColor: 'rgba(158, 206, 255, 1)',
+                                borderWidth: 1,
+                                borderRadius: 6,
+                                hoverBackgroundColor: 'rgba(186, 225, 255, 0.9)',
                                 barPercentage: 0.7
                             }
                         ]
@@ -1065,7 +1079,9 @@
         function showErrorModal(message, isAuthError = false) {
             document.getElementById('errorContent').textContent = message;
             document.getElementById('errorModal').classList.remove('hidden');
-            const closeButton = document.getElementById('errorModal').querySelector('button');            if (isAuthError) {
+            const closeButton = document.getElementById('errorModal').querySelector('button');
+            
+            if (isAuthError) {
                 closeButton.onclick = function() { closeModalAndMaybeLogout(); };
             } else {
                 closeButton.onclick = function() { closeModal(); };

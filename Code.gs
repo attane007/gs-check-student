@@ -305,7 +305,7 @@ function testUtilitiesObject() {
 
 // --- JWT Configuration ---
 const JWT_SECRET_KEY_PROPERTY = 'asdasdlglkbmkbtokb;ltmblmdfdfb';
-const JWT_EXPIRATION_SECONDS = 3600; // 1 hour, adjust as needed
+const JWT_EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days (30 days × 24 hours × 60 minutes × 60 seconds)
 
 function getJwtSecret() {
   let secret = PropertiesService.getScriptProperties().getProperty(JWT_SECRET_KEY_PROPERTY);
@@ -1348,29 +1348,28 @@ function getDailyAttendanceStats(days, authToken) {
     if (!attendanceSheet) {
       Logger.log('Error in getDailyAttendanceStats: Attendance data sheet not found.');
       return { success: false, error: 'Attendance data sheet not found.', dailyStats: [] };
-    }
-    const attendanceDataRange = attendanceSheet.getDataRange();
+    }    const attendanceDataRange = attendanceSheet.getDataRange();
     const attendanceData = attendanceDataRange.getValues();
     
     if (attendanceData.length <= 1) { // Only header or empty
         Logger.log('No attendance data found to process for daily stats.');
         return { success: true, dailyStats: [] }; // No data to process
     }
+    
+    // Get header before removing it
+    const attendanceHeader = attendanceData[0];
     attendanceData.shift(); // Remove header
 
     const dailyStatsMap = new Map();
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
-
-    // Initialize map for the last 'days'
+    today.setHours(0, 0, 0, 0); // Normalize today to the start of the day    // Initialize map for the last 'days'
     for (let i = 0; i < days; i++) {
       const targetDate = new Date(today);
       targetDate.setDate(today.getDate() - i);
       const dateString = Utilities.formatDate(targetDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      dailyStatsMap.set(dateString, { date: dateString, present: 0, absent: 0 });
-    }    // Get column indexes for attendance data
-    const attendanceHeader = attendanceData.length > 0 ? attendanceData[0] : [];
-    
+      dailyStatsMap.set(dateString, { date: dateString, present: 0, late: 0, absent: 0, excused: 0 });    }
+
+    // Get column indexes for attendance data using the header we saved
     // Find date column
     const dateDolIndex = attendanceHeader.findIndex(header => 
         header && (header.toString().trim() === 'วันที่' || 
@@ -1387,12 +1386,8 @@ function getDailyAttendanceStats(days, authToken) {
     );
     const actualStatusColIndex = statusColIndex !== -1 ? statusColIndex : 5;
     
-    // Remove header if we have data
-    if (attendanceData.length > 0) {
-      attendanceData.shift();
-    }
-    
-    Logger.log(`Daily stats - Using column indexes - Date: ${actualDateColIndex}, Status: ${actualStatusColIndex}`);    
+    Logger.log(`Daily stats - Using column indexes - Date: ${actualDateColIndex}, Status: ${actualStatusColIndex}`);
+    Logger.log(`Daily stats - Header structure: ${JSON.stringify(attendanceHeader)}`);
     // Populate stats from attendance data
     attendanceData.forEach(row => {
       if (!row || row.length <= Math.max(actualDateColIndex, actualStatusColIndex)) { 
@@ -1414,28 +1409,48 @@ function getDailyAttendanceStats(days, authToken) {
           return; // Skip this row if date can't be parsed
         }
       }
-      
-      const recordDateStr = Utilities.formatDate(recordDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        const recordDateStr = Utilities.formatDate(recordDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
       const status = row[actualStatusColIndex] ? row[actualStatusColIndex].toString().toLowerCase() : '';
 
-      if (recordDateStr && dailyStatsMap.has(recordDateStr)) {
+      // Debug log for each status found
+      if (status) {
+        Logger.log(`Processing record: Date=${recordDateStr}, Status='${status}', Has date in map: ${dailyStatsMap.has(recordDateStr)}`);
+      }if (recordDateStr && dailyStatsMap.has(recordDateStr)) {
         let stat = dailyStatsMap.get(recordDateStr);
-        
-        // Check for various present/late status formats
-        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
+          // Check for various present status formats
+        if (status === 'present' || status === 'มา') {
           stat.present++;
+          Logger.log(`✓ Incremented PRESENT for ${recordDateStr}: now ${stat.present}`);
         } 
-        // Check for various absent status formats
-        else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
+        // Check for late status
+        else if (status === 'late' || status === 'สาย') {
+          stat.late++;
+          Logger.log(`✓ Incremented LATE for ${recordDateStr}: now ${stat.late}`);
+        }
+        // Check for excused status (ลา) - separate from absent
+        else if (status === 'excused' || status === 'ลา') {
+          stat.excused++;
+          Logger.log(`✓ Incremented EXCUSED for ${recordDateStr}: now ${stat.excused}`);
+        }
+        // Check for absent status (not including excused)
+        else if (status === 'absent' || status === 'ขาด') {
           stat.absent++;
+          Logger.log(`✓ Incremented ABSENT for ${recordDateStr}: now ${stat.absent}`);
+        }
+        else if (status) {
+          Logger.log(`⚠️ Unknown status '${status}' for ${recordDateStr} - not counted`);
         }
         // No need to dailyStatsMap.set(recordDateStr, stat) as stat is a reference
       }
-    });
-
-    const dailyStats = Array.from(dailyStatsMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date)); // Sort by date ascending
+    });    const dailyStats = Array.from(dailyStatsMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date)); // Sort by date ascending
 
     Logger.log(`getDailyAttendanceStats returning ${dailyStats.length} days of data. Sample: ${JSON.stringify(dailyStats.slice(0, 2))}`);
+    Logger.log(`Full daily stats data structure: ${JSON.stringify(dailyStats)}`);
+    
+    // Log summary of all data
+    dailyStats.forEach(day => {
+      Logger.log(`📊 ${day.date}: Present=${day.present}, Late=${day.late}, Absent=${day.absent}, Excused=${day.excused}`);
+    });
     
     return { 
       success: true, 

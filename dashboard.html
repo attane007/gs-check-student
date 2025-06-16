@@ -61,11 +61,21 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="<?= ScriptApp.getService().getUrl(); ?>" 
+                    <a href="#" 
+                       id="navIndexLink"
+                       onclick="navigateTo('index')" 
                        class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70">
                         <i class="fas fa-check-circle mr-1"></i>
                         ไปหน้าเช็คชื่อ
                     </a>
+                    <div id="userInfoDisplay" class="text-sm text-gray-700"></div>
+                    <button 
+                        id="logoutButton"
+                        class="px-4 py-2 rounded-lg font-semibold bg-pastel-coral text-gray-800 hover:opacity-90 hidden"
+                    >
+                        <i class="fas fa-sign-out-alt mr-1"></i>
+                        ออกจากระบบ
+                    </button>
                 </div>
             </div>
         </div>
@@ -126,7 +136,7 @@
                      <div class="mb-4 flex space-x-2">
                         <input type="date" id="dateFrom" class="p-2 border rounded-lg">
                         <input type="date" id="dateTo" class="p-2 border rounded-lg">
-                        <button onclick="loadOverallDashboardData()" class="bg-pastel-blue text-white px-4 py-2 rounded-lg">โหลดข้อมูล</button>
+                        <button onclick="loadOverallDashboardDataWithToken()" class="bg-pastel-blue text-white px-4 py-2 rounded-lg">โหลดข้อมูล</button>
                     </div>
                     <div id="overallClassroomStats" class="space-y-4 max-h-96 overflow-y-auto">
                         <p class="text-gray-600 text-center py-8">เลือกช่วงวันที่เพื่อดูข้อมูล</p>
@@ -150,8 +160,7 @@
                         สถิติรายวัน (7 วันล่าสุด)
                     </h2>
                     <div id="dailyStatsChartContainer" class="space-y-3">
-                        <!-- Chart will be rendered here by Chart.js if integrated -->
-                         <canvas id="dailyAttendanceChart" class="max-h-60"></canvas>
+                        <canvas id="dailyAttendanceChart" class="max-h-60"></canvas>
                         <p id="dailyStatsFallback" class="text-gray-600 text-center py-8 hidden">กำลังโหลดข้อมูล...</p>
                     </div>
                 </div>
@@ -166,321 +175,291 @@
                 <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
             </div>
             <h3 class="text-2xl font-bold text-gray-800 mb-2">เกิดข้อผิดพลาด</h3>
-            <div id="errorContent"></div>
-            <button onclick="closeModal()" class="mt-6 bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90">
+            <div id="errorContent" class="text-gray-700"></div>
+            <button onclick="closeModalAndMaybeLogout()" class="mt-6 bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90">
                 ปิด
             </button>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let todayAttendance = [];
-        let classroomsData = []; // For classroom names
-        let overallDashboardStats = {}; // For stats from getAttendanceStats
-        let dailyChartInstance = null;
+        const appUrl = '<?!= appUrl ?>'; // Injected by Apps Script doGet
+        let currentUser = null;
+        let currentToken = null;
+
+        // Helper function for top-level navigation in Apps Script
+        function triggerTopNavigation(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_top'; // Ensures navigation of the top-level window
+            document.body.appendChild(a); // Link must be in the document to be clicked
+            a.click();
+            document.body.removeChild(a); // Clean up the temporary link
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard initializing...');
-            updateDateTime();
-            setInterval(updateDateTime, 1000);
-            loadInitialDashboardData(); // Load data for "today" overview and classroom names
-            
+            currentToken = localStorage.getItem('jwtToken');
+            const storedUserInfo = localStorage.getItem('userInfo');
+
+            if (!currentToken) {
+                redirectToLogin('Session not found. Please login.');
+                return;
+            }
+
+            if (storedUserInfo) {
+                currentUser = JSON.parse(storedUserInfo);
+                // Security check: Ensure only admin/teacher can access dashboard
+                if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') {
+                    redirectToLogin('Access Denied: You do not have permission to view the dashboard.', 'index'); // Redirect to index page
+                    return;
+                }
+                initializeDashboard();
+            } else {
+                // If token exists but no user info, try to fetch it
+                setLoadingState(true, 'Verifying session...');
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoadingState(false);
+                        if (response.success && response.user) {
+                            currentUser = response.user;
+                            localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                            if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') {
+                                redirectToLogin('Access Denied: You do not have permission to view the dashboard.', 'index');
+                                return;
+                            }
+                            initializeDashboard();
+                        } else {
+                            handleAuthError(response.error || 'Invalid session. Please login again.', response.expired);
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        setLoadingState(false);
+                        handleAuthError('Error verifying session: ' + error.message);
+                    })
+                    .getUserDataFromToken(currentToken);
+            }
         });
 
-        function updateDateTime() {
-            const now = new Date();
-            const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' };
-            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('th-TH', options);
+        function initializeDashboard() {
+            if (!currentUser) {
+                redirectToLogin('User data not available. Please login.');
+                return;
+            }
+            console.log('Dashboard User:', currentUser.username, 'Role:', currentUser.role);
+            updateUserInfoDisplay();
+            setupLogoutButton();
+            setupNavigation();
+            loadOverallDashboardDataWithToken(); // Initial data load for dashboard
+            loadDailyStatsChartData();
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
         }
 
-        function loadInitialDashboardData() {
-            showLoadingIndicator(true, 'classroomStatsToday');
-            showLoadingIndicator(true, 'dailyStatsFallback');
-
-            let classroomsLoaded = false;
-            let todayAttendanceLoaded = false;
-
-            // Helper function to update today's classroom stats when both dependencies are met
-            function attemptUpdateClassroomStatsToday() {
-                if (classroomsLoaded && todayAttendanceLoaded) {
-                    updateClassroomStatsTodayDisplay();
-                }
+        function updateUserInfoDisplay() {
+            const userInfoDisplay = document.getElementById('userInfoDisplay');
+            if (userInfoDisplay && currentUser) {
+                userInfoDisplay.textContent = `Welcome, ${currentUser.fullName} (${currentUser.role})`;
             }
-
-            // Helper function to load overall data when both initial dependencies are met
-            function attemptLoadOverallData() {
-                if (classroomsLoaded && todayAttendanceLoaded) {
-                    const today = new Date();
-                    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                    const dateFromInput = document.getElementById('dateFrom');
-                    const dateToInput = document.getElementById('dateTo');
-                    
-                    if (!dateFromInput.value) {
-                        dateFromInput.valueAsDate = firstDayOfMonth;
-                    }
-                    if (!dateToInput.value) {
-                        dateToInput.valueAsDate = today;
-                    }
-                    loadOverallDashboardData();
-                }
-            }
-
-            // Fetch today's attendance for the overview and today's classroom stats
-            google.script.run
-                .withSuccessHandler(function(attendanceResult) {
-                    if (attendanceResult && attendanceResult.success) {
-                        todayAttendance = attendanceResult.attendance;
-                        updateTodayOverview(); // Depends only on todayAttendance
-                    } else {
-                        console.error('Failed to load today attendance for dashboard:', attendanceResult);
-                        showError('ไม่สามารถโหลดข้อมูลการเข้าเรียนวันนี้: ' + (attendanceResult ? attendanceResult.message : 'Unknown error'));
-                        todayAttendance = []; // Ensure it's an empty array on failure
-                    }
-                    // showLoadingIndicator(false, 'classroomStatsToday'); // Removed: handled by update function or its absence
-                    todayAttendanceLoaded = true;
-                    attemptUpdateClassroomStatsToday();
-                    attemptLoadOverallData();
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error loading today attendance for dashboard:', error);
-                    showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนวันนี้: ' + error.message);
-                    todayAttendance = []; // Ensure it's an empty array on failure
-                    // showLoadingIndicator(false, 'classroomStatsToday'); // Removed
-                    todayAttendanceLoaded = true; 
-                    attemptUpdateClassroomStatsToday();
-                    attemptLoadOverallData();
-                })
-                .getTodayAttendanceList();
-
-            // Fetch all classroom names
-            google.script.run
-                .withSuccessHandler(function(classroomsResult) {
-                    if (classroomsResult && classroomsResult.success) {
-                        classroomsData = classroomsResult.classrooms;
-                    } else {
-                        console.error('Failed to load classrooms for dashboard:', classroomsResult);
-                        classroomsData = []; // Ensure it's an empty array on failure
-                    }
-                    classroomsLoaded = true;
-                    attemptUpdateClassroomStatsToday();
-                    attemptLoadOverallData();
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error loading classrooms for dashboard:', error);
-                    classroomsData = []; // Ensure it's an empty array on failure
-                    classroomsLoaded = true; 
-                    attemptUpdateClassroomStatsToday();
-                    attemptLoadOverallData();
-                })
-                .getClassroomsList();
         }
-        
-        function loadOverallDashboardData() {
+
+        function setupLogoutButton() {
+            const logoutButton = document.getElementById('logoutButton');
+            if (logoutButton) {
+                logoutButton.classList.remove('hidden');
+                logoutButton.addEventListener('click', function() {
+                    setLoadingState(true, 'Logging out...');
+                    google.script.run
+                        .withSuccessHandler(function(response) {
+                            localStorage.removeItem('jwtToken');
+                            localStorage.removeItem('userInfo');
+                            redirectToLogin('You have been logged out.');
+                        })
+                        .withFailureHandler(function(error) {
+                            localStorage.removeItem('jwtToken');
+                            localStorage.removeItem('userInfo');
+                            redirectToLogin('Logout completed. Server notification failed.');
+                        })
+                        .logoutUser(currentToken);
+                });
+            }
+        }
+
+        function setupNavigation() {
+            const navIndexLink = document.getElementById('navIndexLink');
+            if (navIndexLink) {
+                navIndexLink.onclick = function(e) { e.preventDefault(); navigateTo('index'); };
+            }
+            // No dashboard link needed on dashboard page itself, or handle differently
+        }
+
+        function navigateTo(page) {
+            // window.top.location.href = appUrl + '?page=' + page;
+            triggerTopNavigation(appUrl + '?page=' + page);
+        }
+
+        function redirectToLogin(message, defaultPage = 'login') {
+            localStorage.removeItem('jwtToken');
+            localStorage.removeItem('userInfo');
+            let targetUrl = appUrl + '?page=' + defaultPage;
+            if (message) {
+                if (defaultPage === 'login') {
+                     targetUrl += (message.toLowerCase().includes('denied') || message.toLowerCase().includes('error') ? '&errorMessage=' : '&infoMessage=') + encodeURIComponent(message);
+                } else {
+                    targetUrl += '&infoMessage=' + encodeURIComponent(message); 
+                }
+            }
+            // window.top.location.href = targetUrl;
+            triggerTopNavigation(targetUrl);
+        }
+
+        function handleAuthError(errorMessage, isExpired) {
+            console.error('Auth Error:', errorMessage);
+            showErrorModal('Authentication Error: ' + errorMessage + (isExpired ? ' (Token Expired)' : ''), true);
+        }
+
+        function setLoadingState(isLoading, message = 'Loading...') {
+            // A more generic loading indicator might be needed for the dashboard
+            // For now, we can log or use a simple visual cue if one exists
+            console.log(isLoading ? `Loading: ${message}` : 'Loading complete.');
+            // Example: If you have a global loading overlay
+            // const overlay = document.getElementById('globalLoadingOverlay');
+            // if (overlay) overlay.classList.toggle('hidden', !isLoading);
+        }
+
+        function loadOverallDashboardDataWithToken() {
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
-
-            if (!dateFrom || !dateTo) {
-                showError("กรุณาเลือกช่วงวันที่");
-                return;
-            }
-            console.log('Loading overall dashboard data for range:', dateFrom, 'to', dateTo);
-            showLoadingIndicator(true, 'overallClassroomStats');
-            showLoadingIndicator(true, 'topOverallAttendees');
-            showLoadingIndicator(true, 'dailyStatsFallback');
-
-
+            
+            setLoadingState(true, 'Loading dashboard data...');
             google.script.run
-                .withSuccessHandler(function(result) {
-                    if (result && result.success) {
-                        overallDashboardStats = result; // The whole stats object
-                        updateOverallClassroomStatsDisplay();
-                        updateTopOverallAttendeesDisplay();
-                        updateDailyStatsChart();
+                .withSuccessHandler(function(response) {
+                    setLoadingState(false);
+                    if (response.success) {
+                        updateDashboardUI(response.stats); 
+                        updateClassroomStatsToday(response.todayClassroomStats); 
+                        updateTopAttendees(response.topAttendees); 
                     } else {
-                        console.error('Failed to load overall dashboard stats:', result);
-                        showError('ไม่สามารถโหลดสถิติภาพรวม: ' + (result ? result.message : 'Unknown error'));
+                        handleAuthError(response.error || 'Failed to load dashboard data.', response.expired);
                     }
-                    showLoadingIndicator(false, 'overallClassroomStats');
-                    showLoadingIndicator(false, 'topOverallAttendees');
-                    showLoadingIndicator(false, 'dailyStatsFallback');
                 })
                 .withFailureHandler(function(error) {
-                    console.error('Error loading overall dashboard stats:', error);
-                    showError('เกิดข้อผิดพลาดในการโหลดสถิติภาพรวม: ' + error.message);
-                    showLoadingIndicator(false, 'overallClassroomStats');
-                    showLoadingIndicator(false, 'topOverallAttendees');
-                    showLoadingIndicator(false, 'dailyStatsFallback');
+                    setLoadingState(false);
+                    handleAuthError('Error loading dashboard data: ' + error.message);
                 })
-                .getDashboardStats(dateFrom, dateTo); // Assuming getDashboardStats is the renamed getAttendanceStats
+                .getDashboardData(dateFrom, dateTo, currentToken); // New Code.gs function needed
         }
 
-
-        function updateTodayOverview() {
-            const totalPresentToday = todayAttendance.filter(r => r.status === 'เข้าเรียน' || r.status === 'มาเรียน').length;
-            // To get totalAbsent, we need total students for today. This is tricky without knowing all students scheduled for today.
-            // For simplicity, let's assume total students is not easily available here for an accurate "absent" count for the *entire school*.
-            // The current `getTodayAttendanceList` only returns those who *have* a record.
-            // So, we'll show "Present" and leave "Absent" as 0 or hide it for the school-wide overview.
-            // A more accurate "absent" count would require knowing all students expected today.
+        function updateDashboardUI(stats) {
+            if (!stats) return;
+            document.getElementById('dashTotalPresent').textContent = stats.totalPresentToday || 0;
+            document.getElementById('dashTotalAbsent').textContent = stats.totalAbsentToday || 0;
+            const rate = stats.overallAttendanceRateToday || 0;
+            document.getElementById('dashAttendanceRate').textContent = `${rate.toFixed(1)}%`;
+            document.getElementById('dashAttendanceBar').style.width = `${rate}%`;
             
-            // Let's count unique students from today's attendance.
-            const uniqueStudentIdsToday = [...new Set(todayAttendance.map(r => r.studentId))];
-            const presentCount = uniqueStudentIdsToday.length; // Number of unique students who attended
-
-            document.getElementById('dashTotalPresent').textContent = presentCount;
-            // document.getElementById('dashTotalAbsent').textContent = totalAbsent; // This would be inaccurate.
-
-            // Attendance rate for today - this also needs total expected students.
-            // If we only have data for those who attended, rate is 100% of those who attended.
-            // This part needs clarification on what "total students" refers to for the overview.
-            // For now, let's base it on unique students who had any record today vs. those marked present.
-            if (overallDashboardStats.overall) { // Use overall stats if available for a better total
-                 const rate = overallDashboardStats.overall.totalStudents > 0 ? Math.round((presentCount / overallDashboardStats.overall.totalStudents) * 100) : 0;
-                 document.getElementById('dashAttendanceRate').textContent = rate + '%';
-                 document.getElementById('dashAttendanceBar').style.width = rate + '%';
+            // For overall classroom stats (if part of the same response or separate)
+            const overallStatsContainer = document.getElementById('overallClassroomStats');
+            overallStatsContainer.innerHTML = ''; // Clear
+            if (stats.overallClassroomBreakdown && stats.overallClassroomBreakdown.length > 0) {
+                stats.overallClassroomBreakdown.forEach(cls => {
+                    const p = document.createElement('p');
+                    p.textContent = `${cls.name}: Present ${cls.present}, Absent ${cls.absent} (Rate: ${cls.rate.toFixed(1)}%)`;
+                    overallStatsContainer.appendChild(p);
+                });
             } else {
-                 document.getElementById('dashAttendanceRate').textContent = 'N/A';
-                 document.getElementById('dashAttendanceBar').style.width = '0%';
+                overallStatsContainer.innerHTML = '<p class="text-gray-600 text-center py-4">No overall data for selected period.</p>';
             }
         }
 
-        function updateClassroomStatsTodayDisplay() {
-            console.log("[Dashboard] Updating Classroom Stats Today. Received Classrooms:", JSON.parse(JSON.stringify(classroomsData)), "Received Today's Attendance:", JSON.parse(JSON.stringify(todayAttendance)));
+        function updateClassroomStatsToday(classroomStats) {
             const container = document.getElementById('classroomStatsToday');
-
-            if (!classroomsData || classroomsData.length === 0) {
-                container.innerHTML = '<p class="text-gray-600 text-center py-8">ไม่มีข้อมูลห้องเรียน</p>';
-                return;
-            }
-
-            if (typeof todayAttendance === 'undefined') {
-                 console.error("[Dashboard] todayAttendance is undefined in updateClassroomStatsTodayDisplay. This indicates a loading logic issue.");
-                 container.innerHTML = '<p class="text-gray-600 text-center py-8">เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติห้องเรียนของวันนี้</p>';
-                 return;
-            }
-
-            let html = classroomsData.map(classroomName => {
-                const studentsInClassToday = todayAttendance.filter(
-                    r => r.classroom === classroomName && r.status === 'เข้าเรียน' // Simplified status check
-                );
-                const presentCount = [...new Set(studentsInClassToday.map(s => s.studentId))].length;
-                
-                return `
-                    <div class="flex items-center justify-between p-3 bg-white/30 rounded-lg border border-white/50">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center">
-                                <i class="fas fa-chalkboard-teacher text-white text-xs"></i>
-                            </div>
-                            <span class="font-semibold text-sm">${classroomName}</span>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-lg font-bold text-pastel-green">${presentCount}</span>
-                            <span class="text-xs text-gray-600 ml-1">คน (มาเรียนวันนี้)</span>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            if (html === '') {
-                // This case should ideally be covered by the `!classroomsData || classroomsData.length === 0` check,
-                // but as a fallback if classroomsData was manipulated unexpectedly.
-                container.innerHTML = '<p class="text-gray-600 text-center py-8">ไม่สามารถแสดงผลสถิติห้องเรียนได้</p>';
-                 console.log("[Dashboard] ClassroomStatsTodayDisplay: Resulting HTML was empty, though classroomsData might exist.");
+            container.innerHTML = ''; // Clear
+            if (classroomStats && classroomStats.length > 0) {
+                classroomStats.forEach(stat => {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 bg-white/70 rounded-lg';
+                    div.innerHTML = `
+                        <h4 class="font-semibold text-gray-700">${stat.classroomName}</h4>
+                        <div class="flex justify-between text-sm">
+                            <span>Present: <strong class="text-green-600">${stat.present}</strong></span>
+                            <span>Absent: <strong class="text-red-600">${stat.absent}</strong></span>
+                            <span>Rate: <strong>${stat.rate.toFixed(1)}%</strong></span>
+                        </div>`;
+                    container.appendChild(div);
+                });
             } else {
-                container.innerHTML = html;
+                container.innerHTML = '<p class="text-gray-600 text-center py-4">No classroom attendance recorded today.</p>';
             }
         }
         
-        function updateOverallClassroomStatsDisplay() {
-            const container = document.getElementById('overallClassroomStats');
-            if (!overallDashboardStats.classroomStats || overallDashboardStats.classroomStats.length === 0) {
-                container.innerHTML = '<p class="text-gray-600 text-center py-8">ไม่มีข้อมูลสถิติห้องเรียนสำหรับช่วงวันที่เลือก</p>';
-                showLoadingIndicator(false, 'overallClassroomStats');
-                return;
-            }
-
-            let html = overallDashboardStats.classroomStats.map(stat => {
-                return `
-                    <div class="flex items-center justify-between p-3 bg-white/30 rounded-lg border border-white/50">
-                        <div class="flex items-center space-x-3">
-                             <div class="w-8 h-8 bg-gradient-to-r from-pastel-sky to-pastel-blue rounded-full flex items-center justify-center">
-                                <i class="fas fa-users text-white text-xs"></i>
-                            </div>
-                            <span class="font-semibold text-sm">${stat.classroom}</span>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-sm text-gray-700">เข้าเรียน: ${stat.attendedStudents} / ${stat.totalStudents} (${stat.attendancePercentage}%)</span>
-                            <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
-                                <div class="bg-gradient-to-r from-pastel-green to-pastel-mint h-2 rounded-full" style="width: ${stat.attendancePercentage}%"></div>
-                            </div>
-                        </div>
-                    </div>`;
-            }).join('');
-            container.innerHTML = html;
-            showLoadingIndicator(false, 'overallClassroomStats');
-        }
-
-        function updateTopOverallAttendeesDisplay() {
+        function updateTopAttendees(attendees) {
             const container = document.getElementById('topOverallAttendees');
-            if (!overallDashboardStats.topAttendees || overallDashboardStats.topAttendees.length === 0) {
-                container.innerHTML = '<p class="text-gray-600 text-center py-8">ไม่มีข้อมูลนักเรียนที่เข้าเรียนสม่ำเสมอสำหรับช่วงวันที่เลือก</p>';
-                showLoadingIndicator(false, 'topOverallAttendees');
-                return;
+            container.innerHTML = ''; // Clear
+            if (attendees && attendees.length > 0) {
+                attendees.forEach(att => {
+                    const p = document.createElement('p');
+                    p.className = 'text-sm text-gray-700';
+                    p.innerHTML = `<strong>${att.studentName}</strong>: ${att.daysPresent} days present`;
+                    container.appendChild(p);
+                });
+            } else {
+                container.innerHTML = '<p class="text-gray-600 text-center py-4">No top attendee data for selected period.</p>';
             }
-            let html = overallDashboardStats.topAttendees.map((student, index) => {
-                 const rankColor = index === 0 ? 'text-yellow-400' : (index === 1 ? 'text-gray-400' : (index === 2 ? 'text-orange-400' : 'text-blue-400'));
-                return `
-                    <div class="flex items-center justify-between p-3 bg-white/20 rounded-lg">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold ${rankColor} w-5 text-center">${index + 1}.</span>
-                            <div>
-                                <p class="font-semibold text-sm">${student.studentName}</p>
-                                <p class="text-xs text-gray-600">${student.classroom}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-sm font-semibold text-pastel-purple">${student.attendanceCount}</span>
-                            <span class="text-xs text-gray-600 ml-1">ครั้ง</span>
-                        </div>
-                    </div>`;
-            }).join('');
-            container.innerHTML = html;
-            showLoadingIndicator(false, 'topOverallAttendees');
         }
 
-        function updateDailyStatsChart() {
-            const containerFallback = document.getElementById('dailyStatsFallback');
-            const canvas = document.getElementById('dailyAttendanceChart');
+        function loadDailyStatsChartData() {
+            setLoadingState(true, 'Loading daily chart...');
+            google.script.run
+                .withSuccessHandler(function(response){
+                    setLoadingState(false);
+                    if(response.success && response.dailyStats){
+                        renderDailyAttendanceChart(response.dailyStats);
+                        document.getElementById('dailyStatsFallback').classList.add('hidden');
+                    } else {
+                        document.getElementById('dailyStatsFallback').textContent = response.error || 'Could not load chart data.';
+                        document.getElementById('dailyStatsFallback').classList.remove('hidden');
+                        if(!response.success) handleAuthError(response.error, response.expired);
+                    }
+                })
+                .withFailureHandler(function(err){
+                    setLoadingState(false);
+                    document.getElementById('dailyStatsFallback').textContent = 'Error loading chart: ' + err.message;
+                    document.getElementById('dailyStatsFallback').classList.remove('hidden');
+                    handleAuthError('Error loading chart: ' + err.message);
+                })
+                .getDailyAttendanceStats(7, currentToken); // Get stats for last 7 days
+        }
 
-            if (!overallDashboardStats.dailyStats || overallDashboardStats.dailyStats.length === 0) {
-                canvas.classList.add('hidden');
-                containerFallback.innerHTML = '<p class="text-gray-600 text-center py-8">ไม่มีข้อมูลสถิติรายวันสำหรับช่วงวันที่เลือก</p>';
-                containerFallback.classList.remove('hidden');
-                // No need to call showLoadingIndicator(false, 'dailyStatsFallback') here as we've set the content.
-                return;
-            }
-            
-            containerFallback.classList.add('hidden');
-            canvas.classList.remove('hidden');
-
-            const labels = overallDashboardStats.dailyStats.map(stat => `${stat.dayName.substring(0,3)}, ${stat.date.substring(0,5)}`); // e.g., "Mon, 01/06"
-            const attendedData = overallDashboardStats.dailyStats.map(stat => stat.attendedStudents);
-            // const percentageData = overallDashboardStats.dailyStats.map(stat => stat.attendancePercentage);
-
+        var dailyChartInstance = null; // To keep track of the chart instance
+        function renderDailyAttendanceChart(dailyData) {
+            const ctx = document.getElementById('dailyAttendanceChart').getContext('2d');
             if (dailyChartInstance) {
-                dailyChartInstance.destroy();
+                dailyChartInstance.destroy(); // Destroy previous chart instance if exists
             }
+            const labels = dailyData.map(d => new Date(d.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' }));
+            const presentData = dailyData.map(d => d.present);
+            const absentData = dailyData.map(d => d.absent);
 
-            dailyChartInstance = new Chart(canvas, {
+            dailyChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: 'จำนวนนักเรียนที่เข้าเรียน',
-                        data: attendedData,
-                        backgroundColor: 'rgba(186, 255, 201, 0.6)',
-                        borderColor: 'rgba(186, 255, 201, 1)',
-                        borderWidth: 1
-                    }]
+                    datasets: [
+                        {
+                            label: 'มาเรียน',
+                            data: presentData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.5)', // Pastel Green
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'ขาดเรียน',
+                            data: absentData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)', // Pastel Red
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -488,73 +467,54 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'จำนวนนักเรียน'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'วันที่'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y + ' คน';
-                                    }
-                                    return label;
-                                }
-                            }
+                            ticks: { stepSize: 1 }
                         }
                     }
                 }
-            }); // End of new Chart()
-            // showLoadingIndicator(false, 'dailyStatsFallback'); // Fallback visibility handled above
-        } // End of updateDailyStatsChart function
-
-        function showLoadingIndicator(show, elementId) {
-            const indicator = document.getElementById(elementId);
-            if (indicator) {
-                 if (show) {
-                    indicator.innerHTML = '<p class="text-gray-600 text-center py-8">กำลังโหลดข้อมูล...</p>';
-                    indicator.classList.remove('hidden');
-                } else {
-                    // Content will be replaced by actual data or "no data" message by the calling function.
-                    // For elements like 'overallClassroomStats' and 'topOverallAttendees',
-                    // their respective update functions will replace the loading message or show a "no data" message.
-                    // For 'dailyStatsFallback', its visibility is controlled by `updateDailyStatsChart`.
-                    // Thus, this 'else' part might not need to explicitly hide the element for most cases,
-                    // as the content-updating functions will handle the final state.
-                    // However, if a specific element should be hidden if not loading and no data is shown by its updater,
-                    // that logic would be in the updater or here if it's a general pattern.
-                    // For now, this simplified 'else' should be fine as updaters manage content.
-                }
-            }
+            });
         }
-        
-        function showError(message) {
-            const errorContent = document.getElementById('errorContent');
-            errorContent.innerHTML = `<p class="text-red-500">${message}</p>`;
-            const modal = document.getElementById('errorModal');
-            modal.classList.remove('hidden');
+
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('th-TH', options);
+        }
+
+        // --- Error Modal --- (Shared with index.html, ensure it's defined or include if separate)
+        function showErrorModal(message, isAuthError = false) {
+            document.getElementById('errorContent').textContent = message;
+            document.getElementById('errorModal').classList.remove('hidden');
+            const closeButton = document.getElementById('errorModal').querySelector('button');
+            if (isAuthError) {
+                closeButton.onclick = function() { closeModalAndLogout(); };
+            } else {
+                closeButton.onclick = function() { closeModal(); };
+            }
         }
 
         function closeModal() {
-            const modal = document.getElementById('errorModal');
-            modal.classList.add('hidden');
+            document.getElementById('errorModal').classList.add('hidden');
         }
+
+        function closeModalAndMaybeLogout() { // Renamed to be more specific
+            closeModal();
+            // This function is called from the modal. If it was an auth error, it should trigger logout.
+            // The logic in showErrorModal sets the button's onclick to closeModalAndLogout if isAuthError is true.
+            // So, if we reach here via that path, we should log out.
+            // We need a way to know if this specific modal instance was for an auth error.
+            // The simplest is to rely on the onclick being set correctly by showErrorModal.
+            // If the button was set to call this, and it was an auth error, then proceed to logout.
+            const isLikelyAuthError = document.getElementById('errorContent').textContent.toLowerCase().includes('authentication') || document.getElementById('errorContent').textContent.toLowerCase().includes('session');
+            const isExpiredToken = document.getElementById('errorContent').textContent.toLowerCase().includes('token expired');
+            if(isLikelyAuthError || isExpiredToken){
+                redirectToLogin('Your session is no longer valid. Please login again.');
+            }
+        }
+
+        // Assumed new Code.gs functions:
+        // google.script.run.getDashboardData(dateFrom, dateTo, currentToken);
+        // google.script.run.getDailyAttendanceStats(days, currentToken);
+
     </script>
 </body>
 </html>

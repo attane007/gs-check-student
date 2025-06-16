@@ -27,14 +27,14 @@
             }
         }
     </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">    <style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
         body {
             font-family: 'Kanit', sans-serif;
         }
         .glass-effect {
-            /* backdrop-filter: blur(10px); */ /* Removed for performance */
-            background-color: rgba(255, 255, 255, 0.85); /* Slightly more opaque */
+            background-color: rgba(255, 255, 255, 0.85);
             border: 1px solid rgba(209, 213, 219, 0.3);
         }
         .blur-backdrop {
@@ -43,723 +43,636 @@
         .simple-hover:hover {
             opacity: 0.9;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-pastel-pink via-pastel-peach to-pastel-yellow">    <!-- Header -->
-    <header class="glass-effect blur-backdrop border-b border-white/20 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center">
-                        <i class="fas fa-graduation-cap text-white text-xl"></i>
+<body class="min-h-screen bg-gradient-to-br from-pastel-pink via-pastel-peach to-pastel-yellow">
+    <!-- Authentication Message Area -->
+    <div id="authMessageArea" class="hidden fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
+        <div class="text-center p-8 bg-white shadow-lg rounded-lg">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
+            <p id="authMessageText" class="text-gray-600 mb-6">You need to be logged in to access this page.</p>
+            <a id="authLoginLink" href="#" class="bg-pastel-purple text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90">
+                Go to Login
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content Wrapper (initially hidden if auth message is shown) -->
+    <div id="mainContentWrapper">
+        <!-- Header -->
+        <header class="glass-effect blur-backdrop border-b border-white/20 sticky top-0 z-50">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center">
+                            <i class="fas fa-graduation-cap text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-800">ระบบเช็คชื่อนักเรียน</h1>
+                            <p class="text-sm text-gray-600" id="currentDateTime"></p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-800">ระบบเช็คชื่อนักเรียน</h1>
-                        <p class="text-sm text-gray-600" id="currentDateTime"></p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <!-- Navigation -->
-                    <div class="flex space-x-2">
-                        <a 
-                            href="<?= ScriptApp.getService().getUrl(); ?>?page=index" 
-                            class="px-4 py-2 rounded-lg font-semibold bg-pastel-green text-gray-800"
+                    <div class="flex items-center space-x-4">
+                        <!-- Navigation -->
+                        <div class="flex space-x-2">
+                            <a 
+                                href="#" 
+                                id="navIndexLink"
+                                onclick="navigateTo('index')" 
+                                class="px-4 py-2 rounded-lg font-semibold bg-pastel-green text-gray-800"
+                            >
+                                <i class="fas fa-check-circle mr-1"></i>
+                                เช็คชื่อ
+                            </a>
+                            <a 
+                                href="#" 
+                                id="navDashboardLink"
+                                onclick="navigateTo('dashboard')" 
+                                class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70"
+                            >
+                                <i class="fas fa-chart-pie mr-1"></i>
+                                Dashboard
+                            </a>
+                        </div>
+                        <div id="userInfoDisplay" class="text-sm text-gray-700"></div>
+                        <button 
+                            id="logoutButton"
+                            class="px-4 py-2 rounded-lg font-semibold bg-pastel-coral text-gray-800 hover:opacity-90 hidden"
                         >
-                            <i class="fas fa-check-circle mr-1"></i>
-                            เช็คชื่อ
-                        </a>
-                        <a 
-                            href="<?= ScriptApp.getService().getUrl(); ?>?page=dashboard" 
-                            class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70"
-                        >
-                            <i class="fas fa-chart-pie mr-1"></i>
-                            Dashboard
-                        </a>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-gray-600">นักเรียนที่เข้าเรียนวันนี้</p>
-                        <p class="text-2xl font-bold text-pastel-purple" id="todayCount">0</p>
+                            <i class="fas fa-sign-out-alt mr-1"></i>
+                            ออกจากระบบ
+                        </button>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">นักเรียนที่เข้าเรียนวันนี้</p>
+                            <p class="text-2xl font-bold text-pastel-purple" id="todayCount">0</p>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </header>    <div class="container mx-auto px-4 py-8">
-        <!-- Attendance Section -->
-        <div id="attendanceSection" class="grid lg:grid-cols-3 gap-8">
-            <!-- Check-in Panel -->
-            <div class="lg:col-span-2">
-                <div class="glass-effect rounded-2xl p-8 simple-hover">
-                    <div class="text-center mb-8">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">เช็คชื่อนักเรียน</h2>
-                        <p class="text-gray-600">เลือกห้องเรียนเพื่อแสดงรายชื่อนักเรียน</p>
-                    </div>
+        </header>
 
-                    <!-- Classroom Selection -->
-                    <div class="mb-8">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">เลือกห้องเรียน</label>
-                        <select 
-                            id="classroomSelect" 
-                            class="w-full px-6 py-4 text-lg border-2 border-pastel-blue/50 rounded-xl focus:border-pastel-purple focus:outline-none bg-white/90"
-                            onchange="loadClassroomStudents()"
-                        >
-                            <option value="">-- เลือกห้องเรียน --</option>
-                        </select>
-                    </div>
+        <div class="container mx-auto px-4 py-8">
+            <!-- Attendance Section -->
+            <div id="attendanceSection" class="grid lg:grid-cols-3 gap-8">
+                <!-- Check-in Panel -->
+                <div class="lg:col-span-2">
+                    <div class="glass-effect rounded-2xl p-8 simple-hover">
+                        <div class="text-center mb-8">
+                            <h2 class="text-3xl font-bold text-gray-800 mb-2">เช็คชื่อนักเรียน</h2>
+                            <p class="text-gray-600">เลือกห้องเรียนเพื่อแสดงรายชื่อนักเรียน</p>
+                        </div>
 
-                    <!-- Students List -->
-                    <div id="studentsListContainer" class="hidden">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-xl font-bold text-gray-800">รายชื่อนักเรียน</h3>
-                            <div class="flex space-x-2">
-                                <button 
-                                    onclick="markAllPresent()" 
-                                    class="bg-gradient-to-r from-pastel-green to-pastel-mint text-gray-800 font-semibold py-2 px-4 rounded-lg hover:opacity-90 simple-hover text-sm"
-                                >
-                                    <i class="fas fa-check-double mr-1"></i>
-                                    เข้าเรียนทั้งหมด
-                                </button>
-                                <button 
-                                    onclick="markAllAbsent()" 
-                                    class="bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-2 px-4 rounded-lg hover:opacity-90 simple-hover text-sm"
-                                >
-                                    <i class="fas fa-times-circle mr-1"></i>
-                                    ขาดเรียนทั้งหมด
-                                </button>
+                        <!-- Classroom Selection -->
+                        <div class="mb-8">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">เลือกห้องเรียน</label>
+                            <select 
+                                id="classroomSelect" 
+                                class="w-full px-6 py-4 text-lg border-2 border-pastel-blue/50 rounded-xl focus:border-pastel-purple focus:outline-none bg-white/90"
+                                onchange="loadClassroomStudents()"
+                            >
+                                <option value="">-- เลือกห้องเรียน --</option>
+                            </select>
+                        </div>
+
+                        <!-- Students List -->
+                        <div id="studentsListContainer" class="hidden">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-800">รายชื่อนักเรียน</h3>
+                                <div class="flex space-x-2">
+                                    <button 
+                                        onclick="markAllPresent()" 
+                                        class="bg-gradient-to-r from-pastel-green to-pastel-mint text-gray-800 font-semibold py-2 px-4 rounded-lg hover:opacity-90 simple-hover text-sm"
+                                    >
+                                        <i class="fas fa-check-double mr-1"></i>
+                                        เข้าเรียนทั้งหมด
+                                    </button>
+                                    <button 
+                                        onclick="markAllAbsent()" 
+                                        class="bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-2 px-4 rounded-lg hover:opacity-90 simple-hover text-sm"
+                                    >
+                                        <i class="fas fa-times-circle mr-1"></i>
+                                        ขาดเรียนทั้งหมด
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="studentsList" class="space-y-2 max-h-96 overflow-y-auto">
+                                <!-- Students will be loaded here -->
                             </div>
                         </div>
-                        
-                        <div id="studentsList" class="space-y-2 max-h-96 overflow-y-auto">
-                            <!-- Students will be loaded here -->
-                        </div>
-                    </div>
 
-                    <!-- Loading Indicator -->
-                    <div id="loadingIndicator" class="hidden text-center py-4">
-                        <div class="inline-flex items-center space-x-2">
-                            <div class="w-6 h-6 border-4 border-pastel-purple border-t-transparent rounded-full animate-spin"></div>
-                            <span class="text-gray-600">กำลังประมวลผล...</span>
+                        <!-- Loading Indicator -->
+                        <div id="loadingIndicator" class="hidden text-center py-4">
+                            <div class="inline-flex items-center space-x-2">
+                                <div class="w-6 h-6 border-4 border-pastel-purple border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-gray-600">กำลังประมวลผล...</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Result Display -->
-                    <div id="resultDisplay" class="hidden"></div>
-                </div>
-            </div>            <!-- Side Panel -->
-            <div class="space-y-6">
-                <!-- Classroom Info Card -->
-                <div class="glass-effect rounded-2xl p-6 simple-hover">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-chalkboard-teacher text-pastel-purple mr-2"></i>
-                        ข้อมูลห้องเรียน
-                    </h3>
-                    <div id="classroomInfo" class="text-gray-600">
-                        <p class="text-center py-8">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>
+                        <!-- Result Display -->
+                        <div id="resultDisplay" class="hidden"></div>
                     </div>
                 </div>
+                <!-- Side Panel -->
+                <div class="space-y-6">
+                    <!-- Classroom Info Card -->
+                    <div class="glass-effect rounded-2xl p-6 simple-hover">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-chalkboard-teacher text-pastel-purple mr-2"></i>
+                            ข้อมูลห้องเรียน
+                        </h3>
+                        <div id="classroomInfo" class="text-gray-600">
+                            <p class="text-center py-8">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>
+                        </div>
+                    </div>
 
-                <!-- Quick Stats -->
-                <div class="glass-effect rounded-2xl p-6 simple-hover">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-chart-bar text-pastel-purple mr-2"></i>
-                        สถิติการเข้าเรียน
-                    </h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">มาเรียน</span>
-                            <span class="text-2xl font-bold text-pastel-green" id="statsPresent">0</span>
+                    <!-- Quick Stats -->
+                    <div class="glass-effect rounded-2xl p-6 simple-hover">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-chart-bar text-pastel-purple mr-2"></i>
+                            สถิติการเข้าเรียน
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">มาเรียน</span>
+                                <span class="text-2xl font-bold text-pastel-green" id="statsPresent">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">ขาดเรียน</span>
+                                <span class="text-2xl font-bold text-red-400" id="statsAbsent">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">ยังไม่บันทึก</span>
+                                <span class="text-2xl font-bold text-gray-400" id="statsUnmarked">0</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div id="attendanceProgress" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-3 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 text-center">
+                                เปอร์เซ็นต์การเข้าเรียน: <span id="attendancePercentage" class="font-semibold">0%</span>
+                            </p>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">ขาดเรียน</span>
-                            <span class="text-2xl font-bold text-red-400" id="statsAbsent">0</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">ยังไม่บันทึก</span>
-                            <span class="text-2xl font-bold text-gray-400" id="statsUnmarked">0</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div id="attendanceProgress" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-3 rounded-full" style="width: 0%"></div>
-                        </div>
-                        <p class="text-sm text-gray-600 text-center">
-                            เปอร์เซ็นต์การเข้าเรียน: <span id="attendancePercentage" class="font-semibold">0%</span>
-                        </p>
                     </div>
                 </div>
-
-                <!-- Recent Check-ins -->
-                <div class="glass-effect rounded-2xl p-6 simple-hover">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-clock text-pastel-purple mr-2"></i>
-                        การบันทึกล่าสุด
-                    </h3>
-                    <div id="recentCheckIns" class="space-y-3">
-                        <p class="text-gray-600 text-center py-4">ยังไม่มีการบันทึกวันนี้</p>
-                    </div>
-                </div>
-            </div>        </div>
-
-        <!-- Dashboard Section Removed -->
-    </div>
-
-    <!-- Success Modal -->
-    <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="glass-effect blur-backdrop rounded-2xl p-8 m-4 max-w-md w-full text-center">
-            <div class="w-20 h-20 bg-gradient-to-r from-pastel-green to-pastel-mint rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-check text-white text-3xl"></i>
             </div>
-            <h3 class="text-2xl font-bold text-gray-800 mb-2">เช็คชื่อสำเร็จ!</h3>
-            <div id="successContent"></div>            <button onclick="closeModal()" class="mt-6 bg-gradient-to-r from-pastel-purple to-pastel-lavender text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90">
-                ปิด
-            </button>
         </div>
-    </div>
 
-    <!-- Error Modal -->
-    <div id="errorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="glass-effect blur-backdrop rounded-2xl p-8 m-4 max-w-md w-full text-center">
-            <div class="w-20 h-20 bg-gradient-to-r from-red-400 to-red-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
+        <!-- Error Modal (same as dashboard) -->
+        <div id="errorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="glass-effect blur-backdrop rounded-2xl p-8 m-4 max-w-md w-full text-center">
+                <div class="w-20 h-20 bg-gradient-to-r from-red-400 to-red-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">เกิดข้อผิดพลาด</h3>
+                <div id="errorContent" class="text-gray-700"></div>
+                <button onclick="closeModalAndMaybeLogout()" class="mt-6 bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90">
+                    ปิด
+                </button>
             </div>
-            <h3 class="text-2xl font-bold text-gray-800 mb-2">เกิดข้อผิดพลาด</h3>
-            <div id="errorContent"></div>            <button onclick="closeModal()" class="mt-6 bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90">
-                ปิด
-            </button>
         </div>
-    </div>    <script>        // Global variables
-        let studentsData = [];
-        let todayAttendance = [];
-        let classroomsData = [];
-        let currentClassroomStudents = [];
-        let attendanceMarks = {}; // เก็บสถานะการเข้าเรียนที่ยังไม่ได้บันทึก
 
-        // Initialize the application
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Application initializing...');
-            
-            // Check if Google Apps Script is available
-            if (typeof google === 'undefined' || !google.script) {
-                console.error('Google Apps Script not available');
-                showError('Google Apps Script ไม่พร้อมใช้งาน กรุณาตรวจสอบการเชื่อมต่อ');
-                return;
+        <script>
+            const appUrl = '<?!= appUrl ?>'; // Injected by Apps Script doGet
+            let currentUser = null;
+            let currentToken = null;
+
+            // Helper function for top-level navigation in Apps Script
+            function triggerTopNavigation(url) {
+                window.top.location.href = url; // Directly set the href for top-level navigation
             }
-            
-            updateDateTime();
-            setInterval(updateDateTime, 1000);
-            loadInitialData();
-        });
 
-        // Update date and time
-        function updateDateTime() {
-            const now = new Date();
-            const options = {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZone: 'Asia/Bangkok'
-            };
-            document.getElementById('currentDateTime').textContent = 
-                now.toLocaleDateString('th-TH', options);
-        }
+            document.addEventListener('DOMContentLoaded', function() {
+                currentToken = localStorage.getItem('jwtToken');
+                const storedUserInfo = localStorage.getItem('userInfo');
+                const mainContentWrapper = document.getElementById('mainContentWrapper');
+                const authMessageArea = document.getElementById('authMessageArea');
+                const authLoginLink = document.getElementById('authLoginLink');
 
-        // Load initial data
-        function loadInitialData() {
-            showLoading(true);
-            
-            // Load classrooms and attendance data
-            google.script.run
-                .withSuccessHandler(function(classroomsResult) {
-                    if (classroomsResult && classroomsResult.success) {
-                        classroomsData = classroomsResult.classrooms;
-                        populateClassroomSelect();
-                    } else {
-                        console.error('Failed to load classrooms:', classroomsResult);
-                    }
-                    
-                    // Load today's attendance
+                if (!currentToken) {
+                    // Instead of redirecting, show the auth message and hide main content
+                    mainContentWrapper.classList.add('hidden');
+                    authMessageArea.classList.remove('hidden');
+                    const loginUrl = appUrl + '?page=login&infoMessage=' + encodeURIComponent('Please login to continue.');
+                    authLoginLink.href = loginUrl; 
+                    // Ensure the link uses triggerTopNavigation if it needs to overcome sandbox issues for some reason,
+                    // but a direct href to a top navigation should work if user clicks.
+                    authLoginLink.onclick = function(e) { 
+                        e.preventDefault(); 
+                        triggerTopNavigation(loginUrl);
+                    };
+                    return; // Stop further execution
+                }
+
+                // If token exists, hide auth message and show main content
+                mainContentWrapper.classList.remove('hidden');
+                authMessageArea.classList.add('hidden');
+
+                if (storedUserInfo) {
+                    currentUser = JSON.parse(storedUserInfo);
+                    initializePage();
+                } else {
+                    // If token exists but no user info, try to fetch it
+                    // This case might happen if user info wasn't stored properly or cleared
+                    setLoading(true, 'Verifying session...');
                     google.script.run
-                        .withSuccessHandler(function(attendanceResult) {
-                            if (attendanceResult && attendanceResult.success) {
-                                todayAttendance = attendanceResult.attendance;
-                                updateTodayCount();
-                                updateRecentCheckIns();
+                        .withSuccessHandler(function(response) {
+                            setLoading(false);
+                            if (response.success && response.user) {
+                                currentUser = response.user;
+                                localStorage.setItem('userInfo', JSON.stringify(currentUser)); // Store it now
+                                initializePage();
                             } else {
-                                console.error('Failed to load attendance:', attendanceResult);
+                                handleAuthError(response.error || 'Invalid session. Please login again.', response.expired);
                             }
-                            showLoading(false);
                         })
                         .withFailureHandler(function(error) {
-                            console.error('Error loading attendance:', error);
-                            showLoading(false);
+                            setLoading(false);
+                            handleAuthError('Error verifying session: ' + error.message);
                         })
-                        .getTodayAttendanceList();
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error loading classrooms:', error);
-                    showLoading(false);
-                })
-                .getClassroomsList();
-        }
-
-        // Populate classroom select dropdown
-        function populateClassroomSelect() {
-            const select = document.getElementById('classroomSelect');
-            select.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>';
-            
-            classroomsData.forEach(classroom => {
-                const option = document.createElement('option');
-                option.value = classroom;
-                option.textContent = classroom;
-                select.appendChild(option);
+                        .getUserDataFromToken(currentToken);
+                }
             });
+
+            function initializePage() {
+                if (!currentUser) {
+                    redirectToLogin('User data not available. Please login.');
+                    return;
+                }
+                console.log('User authenticated:', currentUser.username, 'Role:', currentUser.role);
+                updateUserInfoDisplay();
+                setupLogoutButton();
+                setupNavigation();
+                loadInitialData(); // For student lists, classrooms etc.
+                updateDateTime();
+                setInterval(updateDateTime, 1000);
+            }
+
+            function updateUserInfoDisplay() {
+                const userInfoDisplay = document.getElementById('userInfoDisplay');
+                if (userInfoDisplay && currentUser) {
+                    userInfoDisplay.textContent = `Welcome, ${currentUser.fullName} (${currentUser.role})`;
+                }
+            }
+
+            function setupLogoutButton() {
+                const logoutButton = document.getElementById('logoutButton');
+                if (logoutButton) {
+                    logoutButton.classList.remove('hidden');
+                    logoutButton.addEventListener('click', function() {
+                        setLoading(true, 'Logging out...');
+                        // Optional: Call server-side logout for logging, though JWT logout is client-side primarily
+                        google.script.run
+                            .withSuccessHandler(function(response) {
+                                // Regardless of server response, clear client-side token
+                                localStorage.removeItem('jwtToken');
+                                localStorage.removeItem('userInfo');
+                                redirectToLogin('You have been logged out.');
+                            })
+                            .withFailureHandler(function(error) {
+                                // Still clear client-side token even if server call fails
+                                localStorage.removeItem('jwtToken');
+                                localStorage.removeItem('userInfo');
+                                redirectToLogin('Logout completed. Server notification failed.');
+                            })
+                            .logoutUser(currentToken); // Pass token if server needs it for blocklisting etc.
+                });
+            }
         }
 
-        // Load students for selected classroom
-        function loadClassroomStudents() {
-            const selectedClassroom = document.getElementById('classroomSelect').value;
-            
-            if (!selectedClassroom) {
-                hideStudentsList();
-                return;
-            }
-            
-            showLoading(true);
-            
-            google.script.run
-                .withSuccessHandler(function(result) {
-                    if (result && result.success) {
-                        currentClassroomStudents = result.students;
-                        displayStudentsList(result.students, selectedClassroom);
-                        updateClassroomInfo(selectedClassroom, result.students);
-                        updateStats();
+            function setupNavigation() {
+                const navIndexLink = document.getElementById('navIndexLink');
+                const navDashboardLink = document.getElementById('navDashboardLink');
+
+                if (navIndexLink) {
+                    navIndexLink.onclick = function(e) { e.preventDefault(); navigateTo('index'); };
+                }
+                if (navDashboardLink) {
+                    navDashboardLink.onclick = function(e) { e.preventDefault(); navigateTo('dashboard'); };
+                    // Show dashboard link only if admin/teacher
+                    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'teacher')) {
+                        navDashboardLink.classList.remove('hidden'); 
                     } else {
-                        console.error('Failed to load classroom students:', result);
-                        showError('ไม่สามารถโหลดรายชื่อนักเรียนได้');
+                        navDashboardLink.classList.add('hidden');
                     }
-                    showLoading(false);
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error loading classroom students:', error);
-                    showLoading(false);
-                    showError('เกิดข้อผิดพลาดในการโหลดรายชื่อนักเรียน');
-                })
-                .getClassroomStudents(selectedClassroom);
-        }
-
-        // Display students list
-        function displayStudentsList(students, classroom) {
-            const container = document.getElementById('studentsListContainer');
-            const studentsList = document.getElementById('studentsList');
-            
-            container.classList.remove('hidden');
-            
-            studentsList.innerHTML = students.map(student => {
-                const isCheckedIn = isStudentCheckedIn(student.id);
-                const currentMark = attendanceMarks[student.id];
-                
-                let statusClass = 'bg-gray-100';
-                let statusIcon = 'fas fa-question-circle text-gray-400';
-                let statusText = 'ยังไม่บันทึก';
-                
-                if (isCheckedIn) {
-                    statusClass = 'bg-green-100 border-green-300';
-                    statusIcon = 'fas fa-check-circle text-green-500';
-                    statusText = 'มาเรียนแล้ว';
-                } else if (currentMark === 'present') {
-                    statusClass = 'bg-green-50 border-green-200';
-                    statusIcon = 'fas fa-check-circle text-green-400';
-                    statusText = 'มาเรียน (ยังไม่บันทึก)';
-                } else if (currentMark === 'absent') {
-                    statusClass = 'bg-red-50 border-red-200';
-                    statusIcon = 'fas fa-times-circle text-red-400';
-                    statusText = 'ขาดเรียน (ยังไม่บันทึก)';
                 }
-                
-                return `
-                    <div class="flex items-center justify-between p-4 ${statusClass} rounded-lg border">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center">
-                                <span class="text-white font-semibold text-sm">${student.id.slice(-2)}</span>
-                            </div>
-                            <div>
-                                <p class="font-semibold text-gray-800">${student.fullName}</p>
-                                <p class="text-sm text-gray-600">รหัส: ${student.id}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <div class="text-right mr-4">
-                                <i class="${statusIcon}"></i>
-                                <span class="text-sm font-medium ml-1">${statusText}</span>
-                            </div>
-                            ${!isCheckedIn ? `
-                                <button 
-                                    onclick="markAttendance('${student.id}', 'present')" 
-                                    class="bg-gradient-to-r from-pastel-green to-pastel-mint text-gray-800 font-semibold py-2 px-3 rounded-lg hover:opacity-90 simple-hover text-sm"
-                                    title="มาเรียน"
-                                >
-                                    <i class="fas fa-check"></i>
-                                </button>
-                                <button 
-                                    onclick="markAttendance('${student.id}', 'absent')" 
-                                    class="bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-2 px-3 rounded-lg hover:opacity-90 simple-hover text-sm"
-                                    title="ขาดเรียน"
-                                >
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            ` : `
-                                <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">บันทึกแล้ว</span>
-                            `}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            // Add save button if there are unmarked attendance
-            const hasUnmarked = Object.keys(attendanceMarks).length > 0;
-            if (hasUnmarked) {
-                studentsList.innerHTML += `
-                    <div class="mt-6 text-center">
-                        <button 
-                            onclick="saveAllAttendance()" 
-                            class="bg-gradient-to-r from-pastel-purple to-pastel-lavender text-gray-800 font-semibold py-3 px-8 rounded-xl hover:opacity-90 simple-hover"
-                        >
-                            <i class="fas fa-save mr-2"></i>
-                            บันทึกการเข้าเรียนทั้งหมด
-                        </button>
-                    </div>
-                `;
-            }
-        }
-
-        // Hide students list
-        function hideStudentsList() {
-            document.getElementById('studentsListContainer').classList.add('hidden');
-            document.getElementById('classroomInfo').innerHTML = 
-                '<p class="text-center py-8">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>';
-            attendanceMarks = {};
-        }
-
-        // Mark attendance for individual student
-        function markAttendance(studentId, status) {
-            attendanceMarks[studentId] = status;
-            
-            // Refresh the display
-            const selectedClassroom = document.getElementById('classroomSelect').value;
-            if (selectedClassroom && currentClassroomStudents.length > 0) {
-                displayStudentsList(currentClassroomStudents, selectedClassroom);
-                updateStats();
-            }
-        }
-
-        // Mark all students as present
-        function markAllPresent() {
-            currentClassroomStudents.forEach(student => {
-                if (!isStudentCheckedIn(student.id)) {
-                    attendanceMarks[student.id] = 'present';
-                }
-            });
-            
-            const selectedClassroom = document.getElementById('classroomSelect').value;
-            displayStudentsList(currentClassroomStudents, selectedClassroom);
-            updateStats();
-        }
-
-        // Mark all students as absent
-        function markAllAbsent() {
-            currentClassroomStudents.forEach(student => {
-                if (!isStudentCheckedIn(student.id)) {
-                    attendanceMarks[student.id] = 'absent';
-                }
-            });
-            
-            const selectedClassroom = document.getElementById('classroomSelect').value;
-            displayStudentsList(currentClassroomStudents, selectedClassroom);
-            updateStats();
-        }
-
-        // Save all attendance marks
-        function saveAllAttendance() {
-            const pendingMarks = Object.entries(attendanceMarks);
-            
-            if (pendingMarks.length === 0) {
-                showError('ไม่มีการเปลี่ยนแปลงที่ต้องบันทึก');
-                return;
             }
             
-            showLoading(true);
-            
-            let savedCount = 0;
-            let totalCount = pendingMarks.length;
-            let errorsOccurred = false;
-            
-            pendingMarks.forEach(([studentId, status]) => {
-                const student = currentClassroomStudents.find(s => s.id === studentId);
-                if (!student) {
-                    console.error('Student not found in currentClassroomStudents:', studentId);
-                    savedCount++; // Increment to avoid infinite loading
-                    if (savedCount === totalCount) {
-                        handleSaveComplete(errorsOccurred);
+            function navigateTo(page) {
+                // window.top.location.href = appUrl + '?page=' + page;
+                triggerTopNavigation(appUrl + '?page=' + page);
+            }
+
+            function redirectToLogin(message) {
+                localStorage.removeItem('jwtToken');
+                localStorage.removeItem('userInfo');
+                let loginUrl = appUrl + '?page=login';
+                if (message) {
+                    loginUrl += '&infoMessage=' + encodeURIComponent(message);
+                }
+                // setTimeout removed as the main issue was initial load without user activation
+                triggerTopNavigation(loginUrl);
+            }
+
+            function handleAuthError(errorMessage, isExpired) {
+                console.error('Auth Error:', errorMessage);
+                showErrorModal('Authentication Error: ' + errorMessage + (isExpired ? ' (Token Expired)' : ''), true);
+                // The modal's close button will handle logout via closeModalAndMaybeLogout
+            }
+
+            function setLoading(isLoading, message = 'Loading...') {
+                const indicator = document.getElementById('loadingIndicator'); // Assuming a global one or adapt
+                if (indicator) {
+                    const textSpan = indicator.querySelector('span');
+                    if (textSpan) textSpan.textContent = message;
+                    indicator.classList.toggle('hidden', !isLoading);
+                }
+            }
+
+            function loadInitialData() {
+                setLoading(true, 'Loading initial data...');
+                let classroomLoaded = false;
+                let statsLoaded = false;
+
+                function checkAllLoaded() {
+                    if (classroomLoaded && statsLoaded) {
+                        setLoading(false);
                     }
-                    return; // Skip this student
                 }
 
-                // Pass student's full name and classroom along with ID and status
+                // Fetch classrooms
                 google.script.run
-                    .withSuccessHandler(function(result) {
-                        savedCount++;
-                        if (result && !result.success) {
-                            errorsOccurred = true;
-                            console.error('Error saving attendance for student:', studentId, result.message);
+                    .withSuccessHandler(function(response) {
+                        classroomLoaded = true;
+                        if (response.success && response.classrooms) {
+                            populateClassroomDropdown(response.classrooms);
+                        } else if (!response.success) {
+                            handleAuthError(response.error || 'Failed to load classrooms.', response.expired);
                         }
-                        if (savedCount === totalCount) {
-                            handleSaveComplete(errorsOccurred);
+                        checkAllLoaded();
+                    })
+                    .withFailureHandler(function(error) {
+                        classroomLoaded = true;
+                        handleAuthError('Error loading classrooms: ' + error.message);
+                        checkAllLoaded();
+                    })
+                    .getClassrooms(currentToken);
+
+                // Fetch daily attendance stats for "todayCount"
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        statsLoaded = true;
+                        if (response.success && response.totalPresentToday !== undefined) {
+                            document.getElementById('todayCount').textContent = response.totalPresentToday;
+                        } else if (!response.success) {
+                            console.error('Failed to load daily attendance stats:', response.error || 'Unknown error');
+                            if(response.expired) {
+                                handleAuthError(response.error || 'Session expired while loading daily stats.', response.expired);
+                            } else {
+                                document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
+                            }
+                        } else {
+                             console.warn('Daily attendance stats loaded successfully but data is missing.');
+                             document.getElementById('todayCount').textContent = '-';
+                        }
+                        checkAllLoaded();
+                    })
+                    .withFailureHandler(function(error) {
+                        statsLoaded = true;
+                        console.error('Error loading daily attendance stats:', error.message);
+                        document.getElementById('todayCount').textContent = '-'; // Indicate data unavailable
+                        checkAllLoaded();
+                    })
+                    .getDailyAttendanceStats(currentToken);
+            }
+
+            function populateClassroomDropdown(classrooms) {
+                const select = document.getElementById('classroomSelect');
+                if (!select) return;
+                select.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>'; // Clear existing
+                classrooms.forEach(classroom => {
+                    const option = document.createElement('option');
+                    option.value = classroom.id; // Assuming classroom object has id and name
+                    option.textContent = classroom.name;
+                    select.appendChild(option);
+                });
+            }
+
+            function loadClassroomStudents() {
+                const classroomSelect = document.getElementById('classroomSelect');
+                const selectedClassroomId = classroomSelect.value;
+                const studentsListDiv = document.getElementById('studentsList');
+                const studentsListContainer = document.getElementById('studentsListContainer');
+                const resultDisplay = document.getElementById('resultDisplay');
+
+                if (!selectedClassroomId) {
+                    studentsListContainer.classList.add('hidden');
+                    studentsListDiv.innerHTML = '';
+                    updateStats([], {}); // Clear stats
+                    return;
+                }
+
+                setLoading(true, 'Loading students...');
+                resultDisplay.classList.add('hidden');
+                resultDisplay.textContent = '';
+
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoading(false);
+                        if (response.success && response.students) {
+                            renderStudents(response.students);
+                            studentsListContainer.classList.remove('hidden');
+                        } else if (!response.success) {
+                            handleAuthError(response.error || 'Failed to load students.', response.expired);
+                            studentsListContainer.classList.add('hidden');
                         }
                     })
                     .withFailureHandler(function(error) {
-                        errorsOccurred = true;
-                        console.error('Error saving attendance for student:', studentId, error);
-                        savedCount++;
-                        if (savedCount === totalCount) {
-                            handleSaveComplete(errorsOccurred);
+                        setLoading(false);
+                        handleAuthError('Error loading students: ' + error.message);
+                        studentsListContainer.classList.add('hidden');
+                    })
+                    .getStudentsByClassroom(selectedClassroomId, currentToken); // Assuming this function exists and is protected
+            }
+
+            let currentStudents = []; // To keep track of students for the current classroom
+            let attendanceStatus = {}; // studentId: 'present'/'absent'/'late'
+
+            function renderStudents(students) {
+                currentStudents = students;
+                attendanceStatus = {}; // Reset status for new list
+                const listDiv = document.getElementById('studentsList');
+                listDiv.innerHTML = ''; // Clear previous list
+
+                if (students.length === 0) {
+                    listDiv.innerHTML = '<p class="text-gray-500 text-center py-4">No students found in this classroom.</p>';
+                    updateStats(students, attendanceStatus);
+                    return;
+                }
+
+                students.forEach(student => {
+                    const studentId = student.id; // Assuming student object has id, firstName, lastName
+                    attendanceStatus[studentId] = null; // Initially unmarked
+
+                    const card = document.createElement('div');
+                    card.className = 'student-card bg-white/80 p-3 rounded-lg shadow flex items-center justify-between transition-all duration-200';
+                    card.id = `student-${studentId}`;
+
+                    card.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-pastel-lavender flex items-center justify-center mr-3">
+                                <i class="fas fa-user text-pastel-purple"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-700">${student.firstName} ${student.lastName}</p>
+                                <p class="text-xs text-gray-500">ID: ${studentId}</p>
+                            </div>
+                        </div>
+                        <div class="student-actions space-x-1">
+                            <button title="Present" onclick="markStudent('${studentId}', 'present')" class="action-btn bg-green-100 text-green-600 hover:bg-green-200"><i class="fas fa-check"></i></button>
+                            <button title="Absent" onclick="markStudent('${studentId}', 'absent')" class="action-btn bg-red-100 text-red-600 hover:bg-red-200"><i class="fas fa-times"></i></button>
+                            <button title="Late" onclick="markStudent('${studentId}', 'late')" class="action-btn bg-yellow-100 text-yellow-600 hover:bg-yellow-200"><i class="fas fa-clock"></i></button>
+                            <button title="Excused" onclick="markStudent('${studentId}', 'excused')" class="action-btn bg-blue-100 text-blue-600 hover:bg-blue-200"><i class="fas fa-info-circle"></i></button>
+                        </div>
+                    `;
+                    listDiv.appendChild(card);
+                });
+                updateStats(students, attendanceStatus);
+            }
+
+            function markStudent(studentId, status) {
+                attendanceStatus[studentId] = status;
+                const card = document.getElementById(`student-${studentId}`);
+                const buttons = card.querySelectorAll('.action-btn');
+                buttons.forEach(btn => btn.classList.remove('ring-2', 'ring-offset-1', 'ring-green-500', 'ring-red-500', 'ring-yellow-500', 'ring-blue-500'));
+                
+                let targetButton;
+                if (status === 'present') targetButton = card.querySelector('button[title="Present"]');
+                else if (status === 'absent') targetButton = card.querySelector('button[title="Absent"]');
+                else if (status === 'late') targetButton = card.querySelector('button[title="Late"]');
+                else if (status === 'excused') targetButton = card.querySelector('button[title="Excused"]');
+
+                if (targetButton) {
+                    targetButton.classList.add('ring-2', 'ring-offset-1');
+                    if (status === 'present') targetButton.classList.add('ring-green-500');
+                    else if (status === 'absent') targetButton.classList.add('ring-red-500');
+                    else if (status === 'late') targetButton.classList.add('ring-yellow-500');
+                    else if (status === 'excused') targetButton.classList.add('ring-blue-500');
+                }
+                updateStats(currentStudents, attendanceStatus);
+                
+                // Call server to record this single attendance event
+                setLoading(true, 'Recording attendance...');
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoading(false);
+                        const resultDisplay = document.getElementById('resultDisplay');
+                        resultDisplay.textContent = response.message;
+                        resultDisplay.className = response.success ? 'text-green-600 p-2 text-sm' : 'text-red-600 p-2 text-sm';
+                        resultDisplay.classList.remove('hidden');
+                        setTimeout(() => resultDisplay.classList.add('hidden'), 3000);
+                        
+                        if (response.success) {
+                            if (response.newTotalPresentToday !== undefined) {
+                                document.getElementById('todayCount').textContent = response.newTotalPresentToday;
+                            }
+                        } else {
+                             handleAuthError(response.message || 'Failed to record attendance.', response.expired);
                         }
                     })
-                    .checkAttendance(studentId, student.fullName, student.classroom, status);
-            });
-        }
-
-        // Handle save completion
-        function handleSaveComplete(errorsOccurred) {
-            attendanceMarks = {}; // Clear local marks
-            showLoading(true);    // Show loading indicator for the entire refresh sequence
-
-            // First, get the latest list of today's attendance records
-            google.script.run
-                .withSuccessHandler(function(attendanceResult) {
-                    if (attendanceResult && attendanceResult.success) {
-                        todayAttendance = attendanceResult.attendance; // Update global variable
-                        updateTodayCount();      // Update UI for total today's count
-                        updateRecentCheckIns();  // Update UI for recent check-ins list
-
-                        const selectedClassroom = document.getElementById('classroomSelect').value;
-                        if (selectedClassroom && currentClassroomStudents.length > 0) {
-                            google.script.run
-                                .withSuccessHandler(function(studentsResult) {
-                                    if (studentsResult && studentsResult.success) {
-                                        currentClassroomStudents = studentsResult.students; // Update global variable
-                                        displayStudentsList(studentsResult.students, selectedClassroom);
-                                        updateClassroomInfo(selectedClassroom, studentsResult.students);
-                                        updateStats(); 
-                                    } else {
-                                        console.error('Failed to reload classroom students after save:', studentsResult);
-                                    }
-                                    showLoading(false);
-                                    if (!errorsOccurred) {
-                                        showSuccess({
-                                            message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
-                                            timestamp: new Date().toLocaleString('th-TH')
-                                        });
-                                    } else {
-                                        showError('เกิดข้อผิดพลาดบางส่วนในการบันทึกข้อมูล โปรดตรวจสอบ Console');
-                                    }
-                                })
-                                .withFailureHandler(function(error) {
-                                    console.error('Error reloading classroom students after save:', error);
-                                    showLoading(false); 
-                                    showError('เกิดข้อผิดพลาดในการโหลดข้อมูลนักเรียนหลังบันทึก');
-                                })
-                                .getClassroomStudents(selectedClassroom);
-                        } else {
-                            showLoading(false); 
-                            if (!errorsOccurred) {
-                                showSuccess({
-                                    message: 'บันทึกการเข้าเรียนเรียบร้อยแล้ว',
-                                    timestamp: new Date().toLocaleString('th-TH')
-                                });
-                            } else {
-                                showError('เกิดข้อผิดพลาดบางส่วนในการบันทึกข้อมูล โปรดตรวจสอบ Console');
-                            }
-                        }
-                    } else {
-                        console.error('Failed to reload today\'s attendance after save:', attendanceResult);
-                        showLoading(false); 
-                        showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนล่าสุด: ' + (attendanceResult ? attendanceResult.message : 'Unknown error'));
-                    }
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error reloading today\'s attendance after save:', error);
-                    showLoading(false); 
-                    showError('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้าเรียนล่าสุด: ' + error.message);
-                })
-                .getTodayAttendanceList(); 
-        }
-
-        // Update classroom info
-        function updateClassroomInfo(classroom, students) {
-            const classroomInfo = document.getElementById('classroomInfo');
-            const totalStudents = students.length;
-            const presentToday = students.filter(s => isStudentCheckedIn(s.id)).length;
-            
-            classroomInfo.innerHTML = `
-                <div>
-                    <div class="text-center mb-4">
-                        <div class="w-16 h-16 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center mx-auto mb-3">
-                            <i class="fas fa-chalkboard-teacher text-white text-2xl"></i>
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">ห้องเรียน:</span>
-                            <span class="font-semibold">${classroom}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">นักเรียนทั้งหมด:</span>
-                            <span class="font-semibold">${totalStudents} คน</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">มาเรียนวันนี้:</span>
-                            <span class="font-semibold text-green-600">${presentToday} คน</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">ยังไม่บันทึก:</span>
-                            <span class="font-semibold text-gray-500">${totalStudents - presentToday} คน</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Check if student already checked in today
-        function isStudentCheckedIn(studentId) {
-            return todayAttendance.some(record => record.studentId === studentId);
-        }
-
-        // Update today count
-        function updateTodayCount() {
-            document.getElementById('todayCount').textContent = todayAttendance.length;
-        }
-
-        // Update stats
-        function updateStats() {
-            if (currentClassroomStudents.length === 0) {
-                document.getElementById('statsPresent').textContent = '0';
-                document.getElementById('statsAbsent').textContent = '0';
-                document.getElementById('statsUnmarked').textContent = '0';
-                document.getElementById('attendancePercentage').textContent = '0%';
-                document.getElementById('attendanceProgress').style.width = '0%';
-                return;
-            }
-            
-            const totalStudents = currentClassroomStudents.length;
-            const presentCount = currentClassroomStudents.filter(s => 
-                isStudentCheckedIn(s.id) || attendanceMarks[s.id] === 'present'
-            ).length;
-            const absentCount = currentClassroomStudents.filter(s => 
-                attendanceMarks[s.id] === 'absent'
-            ).length;
-            const unmarkedCount = totalStudents - presentCount - absentCount;
-            
-            const percentage = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
-            
-            document.getElementById('statsPresent').textContent = presentCount;
-            document.getElementById('statsAbsent').textContent = absentCount;
-            document.getElementById('statsUnmarked').textContent = unmarkedCount;
-            document.getElementById('attendancePercentage').textContent = percentage + '%';
-            document.getElementById('attendanceProgress').style.width = percentage + '%';
-        }
-
-        // Update recent check-ins
-        function updateRecentCheckIns() {
-            const recentCheckIns = document.getElementById('recentCheckIns');
-            
-            if (todayAttendance.length === 0) {
-                recentCheckIns.innerHTML = '<p class="text-gray-600 text-center py-4">ยังไม่มีการบันทึกวันนี้</p>';
-                return;
+                    .withFailureHandler(function(error) {
+                        setLoading(false);
+                        handleAuthError('Error recording attendance: ' + error.message);
+                    })
+                    .recordAttendance(studentId, status, currentToken);
             }
 
-            const recentList = todayAttendance.slice(0, 5); // Show last 5 check-ins
-            recentCheckIns.innerHTML = recentList.map(record => `
-                <div class="flex items-center justify-between p-3 bg-white/50 rounded-lg">
-                    <div>
-                        <p class="font-semibold text-sm">${record.studentName}</p>
-                        <p class="text-xs text-gray-600">${record.classroom}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xs text-gray-600">${record.time}</p>
-                        <span class="inline-block w-2 h-2 bg-green-400 rounded-full"></span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Show/hide loading indicator
-        function showLoading(show) {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            
-            if (show) {
-                loadingIndicator.classList.remove('hidden');
-            } else {
-                loadingIndicator.classList.add('hidden');
+            function markAllPresent() {
+                currentStudents.forEach(student => markStudent(student.id, 'present'));
+                // Note: markStudent calls recordAttendance for each. For bulk, a different server fn might be better.
             }
-        }
 
-        // Show success modal
-        function showSuccess(result) {
-            const modal = document.getElementById('successModal');
-            const content = document.getElementById('successContent');
-            
-            if (result.student) {
-                content.innerHTML = `
-                    <div class="space-y-2">
-                        <p class="text-lg font-semibold">${result.student.fullName}</p>
-                        <p class="text-gray-600">รหัส: ${result.student.id}</p>
-                        <p class="text-gray-600">ห้อง: ${result.student.classroom}</p>
-                        <p class="text-sm text-gray-500 mt-4">${result.timestamp}</p>
-                    </div>
-                `;
-            } else {
-                content.innerHTML = `
-                    <div class="space-y-2">
-                        <p class="text-lg font-semibold">${result.message}</p>
-                        <p class="text-sm text-gray-500 mt-4">${result.timestamp}</p>
-                    </div>
-                `;
+            function markAllAbsent() {
+                currentStudents.forEach(student => markStudent(student.id, 'absent'));
             }
-            
-            modal.classList.remove('hidden');
-        }
 
-        // Show error modal
-        function showError(message) {
-            const modal = document.getElementById('errorModal');
-            const content = document.getElementById('errorContent');
-            
-            content.innerHTML = `<p class="text-gray-600">${message}</p>`;
-            modal.classList.remove('hidden');
-        }
+            function updateStats(students, statuses) {
+                let present = 0, absent = 0, late = 0, excused = 0, unmarked = 0;
+                students.forEach(student => {
+                    const status = statuses[student.id];
+                    if (status === 'present') present++;
+                    else if (status === 'absent') absent++;
+                    else if (status === 'late') late++; // Late is also considered present for some counts
+                    else if (status === 'excused') excused++;
+                    else unmarked++;
+                });
 
-        // Close modal
-        function closeModal() {
-            document.getElementById('successModal').classList.add('hidden');
-            document.getElementById('errorModal').classList.add('hidden');
-        }
+                document.getElementById('statsPresent').textContent = present + late; // Count late as present for this stat
+                document.getElementById('statsAbsent').textContent = absent;
+                document.getElementById('statsUnmarked').textContent = unmarked;
 
-        // Handle general errors
-        function handleError(error) {
-            showLoading(false);
-            console.error('Error:', error);
-            showError('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
-        }
+                const totalStudents = students.length;
+                const markedStudents = totalStudents - unmarked;
+                let attendanceRate = 0;
+                if (markedStudents > 0) {
+                    // Consider present and late as 'attended' for rate calculation
+                    attendanceRate = ((present + late) / markedStudents) * 100;
+                }
+                
+                const progressPercentage = totalStudents > 0 ? (markedStudents / totalStudents) * 100 : 0;
+                document.getElementById('attendanceProgress').style.width = `${progressPercentage}%`;
+                document.getElementById('attendancePercentage').textContent = `${attendanceRate.toFixed(0)}%`;
+                
+                // Update classroom info (example)
+                const classroomSelect = document.getElementById('classroomSelect');
+                const classroomInfoDiv = document.getElementById('classroomInfo');
+                if (classroomSelect.value) {
+                    classroomInfoDiv.innerHTML = `
+                        <p><strong>ห้องเรียน:</strong> ${classroomSelect.options[classroomSelect.selectedIndex].text}</p>
+                        <p><strong>จำนวนนักเรียน:</strong> ${totalStudents}</p>
+                        <p><strong>มาเรียน (รวมสาย):</strong> ${present + late}</p>
+                        <p><strong>ขาดเรียน:</strong> ${absent}</p>
+                        <p><strong>ลา:</strong> ${excused}</p>
+                    `;
+                } else {
+                    classroomInfoDiv.innerHTML = '<p class="text-center py-8">กรุณาเลือกห้องเรียนเพื่อแสดงข้อมูล</p>';
+                }
+            }
 
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const successModal = document.getElementById('successModal');
-            const errorModal = document.getElementById('errorModal');
-            
-            if (event.target === successModal || event.target === errorModal) {
+            function updateDateTime() {
+                const now = new Date();
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                document.getElementById('currentDateTime').textContent = now.toLocaleDateString('th-TH', options);
+            }
+
+            // --- Error Modal --- 
+            function showErrorModal(message, isAuthError = false) {
+                document.getElementById('errorContent').textContent = message;
+                document.getElementById('errorModal').classList.remove('hidden');
+                // Change button behavior if it's an auth error that requires logout
+                const closeButton = document.getElementById('errorModal').querySelector('button');
+                if (isAuthError) {
+                    closeButton.onclick = function() { closeModalAndLogout(); };
+                } else {
+                    closeButton.onclick = function() { closeModal(); };
+                }
+            }
+
+            function closeModal() {
+                document.getElementById('errorModal').classList.add('hidden');
+            }
+
+            function closeModalAndLogout() {
                 closeModal();
+                redirectToLogin('Your session is no longer valid. Please login again.');
             }
-        }
-    </script>
-</body>
+
+            // Placeholder for functions that need to be created in Code.gs and protected with JWT
+            // google.script.run.getClassrooms(currentToken);
+            // google.script.run.getStudentsByClassroom(classroomId, currentToken);
+
+        </script>
+    </body>
 </html>

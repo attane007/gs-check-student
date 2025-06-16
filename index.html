@@ -684,28 +684,28 @@
                         <div class="student-actions flex space-x-2">
                             <button 
                                 title="เข้าแถว" 
-                                onclick="markStudent('${studentId}', 'present')" 
+                                onclick="markStudent('${studentId}', 'เข้าแถว')" 
                                 class="action-btn bg-gradient-to-r from-pastel-green/70 to-pastel-mint/70 hover:from-pastel-green hover:to-pastel-mint text-green-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
                             >
                                 <i class="fas fa-check"></i>
                             </button>
                             <button 
                                 title="ไม่เข้าแถว" 
-                                onclick="markStudent('${studentId}', 'absent')" 
+                                onclick="markStudent('${studentId}', 'ไม่เข้าแถว')" 
                                 class="action-btn bg-gradient-to-r from-pastel-coral/70 to-pastel-pink/70 hover:from-pastel-coral hover:to-pastel-pink text-red-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
                             >
                                 <i class="fas fa-times"></i>
                             </button>
                             <button 
                                 title="มาสาย" 
-                                onclick="markStudent('${studentId}', 'late')" 
+                                onclick="markStudent('${studentId}', 'มาสาย')" 
                                 class="action-btn bg-gradient-to-r from-pastel-yellow/70 to-pastel-peach/70 hover:from-pastel-yellow hover:to-pastel-peach text-yellow-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
                             >
                                 <i class="fas fa-clock"></i>
                             </button>
                             <button 
                                 title="ลา" 
-                                onclick="markStudent('${studentId}', 'excused')" 
+                                onclick="markStudent('${studentId}', 'ลา')" 
                                 class="action-btn bg-gradient-to-r from-pastel-blue/70 to-pastel-sky/70 hover:from-pastel-blue hover:to-pastel-sky text-blue-800 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150"
                             >
                                 <i class="fas fa-info-circle"></i>
@@ -725,9 +725,11 @@
                 });
                 updateStats(students, attendanceStatus);
             }
-            
-            function markStudent(studentId, status, isInitialSet = false) { // Added isInitialSet parameter
+              function markStudent(studentId, status, isInitialSet = false) { // Added isInitialSet parameter
+                console.log(`markStudent called: studentId=${studentId}, status=${status}, isInitialSet=${isInitialSet}`);
                 attendanceStatus[studentId] = status;
+                console.log('Updated attendanceStatus:', attendanceStatus);
+                
                 const card = document.getElementById(`student-${studentId}`);
                 const buttons = card.querySelectorAll('.action-btn');
                 
@@ -740,13 +742,12 @@
                         btn.classList.remove(ringClass);
                     });
                 });
-                
-                // Determine which button to highlight
+                  // Determine which button to highlight
                 let targetButton;
-                if (status === 'present') targetButton = card.querySelector('button[title="เข้าแถว"]');
-                else if (status === 'absent') targetButton = card.querySelector('button[title="ไม่เข้าแถว"]');
-                else if (status === 'late') targetButton = card.querySelector('button[title="มาสาย"]');
-                else if (status === 'excused') targetButton = card.querySelector('button[title="ลา"]');
+                if (status === 'เข้าแถว') targetButton = card.querySelector('button[title="เข้าแถว"]');
+                else if (status === 'ไม่เข้าแถว') targetButton = card.querySelector('button[title="ไม่เข้าแถว"]');
+                else if (status === 'มาสาย') targetButton = card.querySelector('button[title="มาสาย"]');
+                else if (status === 'ลา') targetButton = card.querySelector('button[title="ลา"]');
 
                 // Apply active style to the selected button
                 if (targetButton) {
@@ -755,10 +756,10 @@
                     
                     // Define ring colors based on status
                     const ringColors = {
-                        'present': 'ring-green-500',
-                        'absent': 'ring-red-500',
-                        'late': 'ring-yellow-500',
-                        'excused': 'ring-blue-500'
+                        'เข้าแถว': 'ring-green-500',
+                        'ไม่เข้าแถว': 'ring-red-500',
+                        'มาสาย': 'ring-yellow-500',
+                        'ลา': 'ring-blue-500'
                     };
                     
                     if (ringColors[status]) {
@@ -772,22 +773,25 @@
                             { transform: 'scale(1.1)' }
                         ], {
                             duration: 200,
-                            iterations: 1
-                        });
+                            iterations: 1                        });
                     }
                 }
-                updateStats(currentStudents, attendanceStatus);
+                
+                // Don't update stats here - let it update in success handler after server confirmation
                 
                 // If this is just for setting the initial UI based on loaded data, don't call the server.
                 if (isInitialSet) {
+                    // For initial set, we do want to update stats since no server call will happen
+                    updateStats(currentStudents, attendanceStatus);
                     return;
                 }
                 
                 // Call server to record this single attendance event
-                setLoading(true, 'Recording attendance...');
-                google.script.run
+                setLoading(true, 'Recording attendance...');                google.script.run
                     .withSuccessHandler(function(response) {
-                        setLoading(false);                        const resultDisplay = document.getElementById('resultDisplay');
+                        setLoading(false);
+                        
+                        const resultDisplay = document.getElementById('resultDisplay');
                         
                         // Create a more visually appealing result notification
                         if (response.success) {
@@ -797,8 +801,13 @@
                                         <i class="fas fa-check text-green-600"></i>
                                     </div>
                                     <span>${response.message}</span>
-                                </div>
-                            `;
+                                </div>                            `;
+                            
+                            // Update stats after successful attendance recording
+                            console.log('Attendance recorded successfully, updating stats with current data:');
+                            console.log('currentStudents:', currentStudents);
+                            console.log('attendanceStatus before updateStats:', attendanceStatus);
+                            updateStats(currentStudents, attendanceStatus);
                         } else {
                             resultDisplay.innerHTML = `
                                 <div class="flex items-center bg-gradient-to-r from-pastel-coral/30 to-pastel-pink/30 p-3 rounded-lg border border-red-200">
@@ -825,40 +834,133 @@
                                 }, 500);
                             }, 2000);
                         }, 0);
-                          if (response.success) {
+                        
+                        if (response.success) {
                             if (response.newTotalPresentToday !== undefined) {
                                 // Today count display removed from navbar
                             }
                         } else {
-                             handleAuthError(response.message || 'Failed to record attendance.', response.expired);
+                            handleAuthError(response.message || 'Failed to record attendance.', response.expired);
                         }
                     })
                     .withFailureHandler(function(error) {
                         setLoading(false);
-                        handleAuthError('Error recording attendance: ' + error.message);
-                    })
+                        handleAuthError('Error recording attendance: ' + error.message);                    })
                     .recordAttendance(studentId, status, currentToken);
-            }
-
-            function markAllPresent() {
-                currentStudents.forEach(student => markStudent(student.id, 'present'));
-                // Note: markStudent calls recordAttendance for each. For bulk, a different server fn might be better.
+                    
+                console.log(`Calling recordAttendance with: studentId=${studentId}, status=${status}`);
+            }            function markAllPresent() {
+                setLoading(true, 'กำลังบันทึกเข้าแถวทั้งหมด...');
+                
+                // Prepare bulk data
+                const studentStatusMap = {};
+                currentStudents.forEach(student => {
+                    studentStatusMap[student.id] = 'เข้าแถว';
+                    attendanceStatus[student.id] = 'เข้าแถว'; // Update local status immediately
+                });
+                
+                // Call bulk API
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoading(false);
+                        if (response.success) {
+                            // Re-render students to show updated UI
+                            renderStudents(currentStudents, attendanceStatus);
+                            
+                            // Show success message
+                            const resultDisplay = document.getElementById('resultDisplay');
+                            resultDisplay.innerHTML = `
+                                <div class="flex items-center bg-gradient-to-r from-pastel-green/30 to-pastel-mint/30 p-3 rounded-lg border border-green-200">
+                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                        <i class="fas fa-check text-green-600"></i>
+                                    </div>
+                                    <span>${response.message}</span>
+                                </div>
+                            `;
+                            resultDisplay.classList.remove('hidden');
+                            setTimeout(() => {
+                                resultDisplay.style.transition = 'opacity 0.5s ease-out';
+                                resultDisplay.style.opacity = '0';
+                                setTimeout(() => {
+                                    resultDisplay.classList.add('hidden');
+                                    resultDisplay.style.opacity = '1';
+                                    resultDisplay.style.transition = '';
+                                }, 500);
+                            }, 2000);
+                        } else {
+                            handleAuthError(response.message || 'Failed to record bulk attendance.', response.expired);
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        setLoading(false);
+                        handleAuthError('Error recording bulk attendance: ' + error.message);
+                    })
+                    .recordBulkAttendance(studentStatusMap, currentToken);
             }
 
             function markAllAbsent() {
-                currentStudents.forEach(student => markStudent(student.id, 'absent'));
-            }
-
-            function updateStats(students, statuses) {
+                setLoading(true, 'กำลังบันทึกไม่เข้าแถวทั้งหมด...');
+                
+                // Prepare bulk data
+                const studentStatusMap = {};
+                currentStudents.forEach(student => {
+                    studentStatusMap[student.id] = 'ไม่เข้าแถว';
+                    attendanceStatus[student.id] = 'ไม่เข้าแถว'; // Update local status immediately
+                });
+                
+                // Call bulk API
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoading(false);
+                        if (response.success) {
+                            // Re-render students to show updated UI
+                            renderStudents(currentStudents, attendanceStatus);
+                            
+                            // Show success message
+                            const resultDisplay = document.getElementById('resultDisplay');
+                            resultDisplay.innerHTML = `
+                                <div class="flex items-center bg-gradient-to-r from-pastel-green/30 to-pastel-mint/30 p-3 rounded-lg border border-green-200">
+                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                        <i class="fas fa-check text-green-600"></i>
+                                    </div>
+                                    <span>${response.message}</span>
+                                </div>
+                            `;
+                            resultDisplay.classList.remove('hidden');
+                            setTimeout(() => {
+                                resultDisplay.style.transition = 'opacity 0.5s ease-out';
+                                resultDisplay.style.opacity = '0';
+                                setTimeout(() => {
+                                    resultDisplay.classList.add('hidden');
+                                    resultDisplay.style.opacity = '1';
+                                    resultDisplay.style.transition = '';
+                                }, 500);
+                            }, 2000);
+                        } else {
+                            handleAuthError(response.message || 'Failed to record bulk attendance.', response.expired);
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        setLoading(false);
+                        handleAuthError('Error recording bulk attendance: ' + error.message);
+                    })
+                    .recordBulkAttendance(studentStatusMap, currentToken);
+            }function updateStats(students, statuses) {
+                console.log('updateStats called with students:', students.length);
+                console.log('updateStats attendanceStatus object:', statuses);
+                
                 let present = 0, absent = 0, late = 0, excused = 0, unmarked = 0;
                 students.forEach(student => {
                     const status = statuses[student.id];
-                    if (status === 'present') present++;
-                    else if (status === 'absent') absent++;
-                    else if (status === 'late') late++; // Late is also considered present for some counts
-                    else if (status === 'excused') excused++;
+                    console.log(`Student ${student.id} (${student.firstName} ${student.lastName}): status = ${status}`);
+                    if (status === 'เข้าแถว') present++;
+                    else if (status === 'ไม่เข้าแถว') absent++;
+                    else if (status === 'มาสาย') late++;
+                    else if (status === 'ลา') excused++;
                     else unmarked++;
                 });
+                
+                console.log(`Stats calculated: present=${present}, absent=${absent}, late=${late}, excused=${excused}, unmarked=${unmarked}`);
 
                 document.getElementById('statsPresent').textContent = present + late; // Count late as present for this stat
                 document.getElementById('statsAbsent').textContent = absent;

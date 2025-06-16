@@ -679,7 +679,162 @@ function recordAttendance(studentId, status, authToken) { // Expects JWT
   }
 }
 
-// New function to get classrooms
+/**
+ * Record attendance for multiple students at once to prevent race conditions
+ */
+function recordBulkAttendance(studentStatusMap, authToken) {
+  const verificationResult = verifyJwt(authToken);
+  if (!verificationResult.valid) {
+    return { success: false, message: 'Authentication failed: ' + verificationResult.error, expired: verificationResult.expired || false };
+  }
+  const userMakingRequest = verificationResult.payload.user;
+  Logger.log(`Bulk attendance record attempt by ${userMakingRequest.username} (Role: ${userMakingRequest.role}) for ${Object.keys(studentStatusMap).length} students`);
+
+  try {
+    const attendanceSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ATTENDANCE_SHEET_NAME);
+    const studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STUDENTS_SHEET_NAME);
+
+    if (!attendanceSheet || !studentSheet) {
+      Logger.log(`BULK_RECORD_ATTENDANCE: Error - Missing sheet. Attendance: ${!attendanceSheet}, Student: ${!studentSheet}`);
+      return { success: false, message: 'Data sheet missing.' };
+    }
+
+    const now = new Date();
+    const currentDate = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const currentTime = Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm:ss');
+
+    // Get student info
+    const studentsData = studentSheet.getDataRange().getValues();
+    const studentHeader = studentsData.shift();
+    
+    const studentIdColIdx = studentHeader.findIndex(h => h && (h.toString().trim() === 'รหัสนักเรียน' || h.toString().trim().toLowerCase() === 'studentid'));
+    const studentFirstNameColIdx = studentHeader.findIndex(h => h && (h.toString().trim() === 'ชื่อ' || h.toString().trim().toLowerCase() === 'firstname'));
+    const studentLastNameColIdx = studentHeader.findIndex(h => h && (h.toString().trim() === 'นามสกุล' || h.toString().trim().toLowerCase() === 'lastname'));
+    const studentClassroomColIdx = studentHeader.findIndex(h => h && (
+        h.toString().trim() === 'ห้องเรียนID' || 
+        h.toString().trim() === 'ห้องเรียน' ||
+        h.toString().trim().toLowerCase() === 'classroomid' ||
+        h.toString().trim().toLowerCase() === 'classroom'
+    ));
+
+    if ([studentIdColIdx, studentFirstNameColIdx, studentLastNameColIdx, studentClassroomColIdx].some(idx => idx === -1)) {
+        return { success: false, message: 'Student sheet structure error.' };
+    }
+
+    // Get attendance data
+    const attendanceData = attendanceSheet.getDataRange().getValues();
+    const attendanceHeader = attendanceData.shift();
+
+    const dateColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'วันที่' || h.toString().trim().toLowerCase() === 'date'));
+    const studentIdAttColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'รหัสนักเรียน' || h.toString().trim().toLowerCase() === 'studentid'));
+    const timeColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'เวลา' || h.toString().trim().toLowerCase() === 'time'));
+    const statusColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'สถานะ' || h.toString().trim().toLowerCase() === 'status'));
+    const nameAttColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'ชื่อ-นามสกุล' || h.toString().trim().toLowerCase() === 'name'));
+    const classroomAttColIdx = attendanceHeader.findIndex(h => h && (h.toString().trim() === 'ห้องเรียน' || h.toString().trim().toLowerCase() === 'classroom'));
+
+    if ([dateColIdx, studentIdAttColIdx, timeColIdx, statusColIdx].some(idx => idx === -1)) {
+        return { success: false, message: 'Attendance sheet structure error.' };
+    }
+
+    let processed = 0;
+    let updated = 0;
+    let created = 0;
+    
+    // Process each student
+    for (const [studentId, status] of Object.entries(studentStatusMap)) {
+      // Find student info
+      let studentInfo = null;
+      for (let i = 0; i < studentsData.length; i++) {
+        if (studentsData[i][studentIdColIdx] && studentsData[i][studentIdColIdx].toString().trim() === studentId.toString().trim()) {
+          studentInfo = {
+            id: studentsData[i][studentIdColIdx],
+            name: `${studentsData[i][studentFirstNameColIdx]} ${studentsData[i][studentLastNameColIdx]}`,
+            classroom: studentsData[i][studentClassroomColIdx]
+          };
+          break;
+        }
+      }
+
+      if (!studentInfo) {
+        Logger.log(`BULK_RECORD_ATTENDANCE: Student with ID ${studentId} not found.`);
+        continue;
+      }
+
+      // Check for existing record today
+      let recordUpdated = false;
+      let existingRowNumber = -1;
+
+      for (let i = 0; i < attendanceData.length; i++) {
+        const row = attendanceData[i];
+        if (row.length > Math.max(dateColIdx, studentIdAttColIdx) && row[dateColIdx] && row[studentIdAttColIdx]) {
+          let recordDateStr = row[dateColIdx];
+          if (recordDateStr instanceof Date) {
+            recordDateStr = Utilities.formatDate(recordDateStr, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+          } else {
+            try {
+              recordDateStr = Utilities.formatDate(new Date(recordDateStr), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+            } catch (e) {
+              continue;
+            }
+          }
+
+          if (recordDateStr === currentDate && row[studentIdAttColIdx].toString().trim() === studentInfo.id.toString().trim()) {
+            // Found existing record - update it
+            existingRowNumber = i + 2; // +1 for 1-based index, +1 because header was shifted
+            attendanceSheet.getRange(existingRowNumber, timeColIdx + 1).setValue(currentTime);
+            attendanceSheet.getRange(existingRowNumber, statusColIdx + 1).setValue(status);
+            recordUpdated = true;
+            updated++;
+            Logger.log(`BULK_RECORD_ATTENDANCE: Updated record for student ${studentInfo.id} at row ${existingRowNumber}. Status: ${status}`);
+            break;
+          }
+        }
+      }
+
+      if (!recordUpdated) {
+        // No existing record found, create new one
+        const newRecord = [];
+        newRecord[dateColIdx] = currentDate;
+        newRecord[timeColIdx] = currentTime;
+        newRecord[studentIdAttColIdx] = studentInfo.id;
+        
+        if (nameAttColIdx !== -1) newRecord[nameAttColIdx] = studentInfo.name;
+        if (classroomAttColIdx !== -1) newRecord[classroomAttColIdx] = studentInfo.classroom;
+        
+        newRecord[statusColIdx] = status;
+
+        // Fill gaps with empty strings
+        const finalRecord = [];
+        for(let i = 0; i < attendanceHeader.length; i++) {
+          finalRecord[i] = newRecord[i] !== undefined ? newRecord[i] : "";
+        }
+
+        attendanceSheet.appendRow(finalRecord);
+        created++;
+        Logger.log(`BULK_RECORD_ATTENDANCE: Created new record for student ${studentInfo.id}. Status: ${status}`);
+      }
+      
+      processed++;
+    }
+
+    return { 
+      success: true, 
+      message: `Bulk attendance recorded: ${processed} students processed, ${created} created, ${updated} updated by ${userMakingRequest.username}`,
+      processed: processed,
+      created: created,
+      updated: updated
+    };
+
+  } catch (error) {
+    Logger.log(`BULK_RECORD_ATTENDANCE: CRITICAL ERROR - ${error.toString()} Stack: ${error.stack}`);
+    return { success: false, message: 'An error occurred while recording bulk attendance: ' + error.message };
+  }
+}
+
+// =====================
+// ENDPOINTS
+// =====================
+
 function getClassrooms(authToken) {
   const verificationResult = verifyJwt(authToken);
   if (!verificationResult.valid) {
@@ -1491,7 +1646,8 @@ function getTodayAttendanceByClassroom(classroomId, authToken) {
         h.toString().trim() === 'ชื่อ' || 
         h.toString().trim().toLowerCase() === 'name' ||
         h.toString().trim() === 'ชื่อนักเรียน'
-    ));    const studentClassroomColIdx = studentsHeader.findIndex(h => h && (
+    ));
+    const studentClassroomColIdx = studentsHeader.findIndex(h => h && (
         h.toString().trim() === 'ห้องเรียนID' || 
         h.toString().trim() === 'ห้องเรียน' || 
         h.toString().trim().toLowerCase() === 'classroomid' ||

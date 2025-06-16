@@ -457,9 +457,7 @@
             }
             
             console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
-        }
-        
-        function loadOverallDashboardDataWithToken() {
+        }function loadOverallDashboardDataWithToken() {
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
             
@@ -695,16 +693,22 @@
                     window.filterClassrooms = function() {
                         const searchInput = document.getElementById('classroomSearch');
                         if (!searchInput) return;
-                        
-                        const searchTerm = searchInput.value.toLowerCase().trim();
+                          const searchTerm = searchInput.value.toLowerCase().trim();
                         const classroomCards = document.querySelectorAll('.classroom-stat-card');
                         
                         classroomCards.forEach(card => {
-                            const classroomName = card.querySelector('h4').textContent.toLowerCase();
-                            if (searchTerm === '' || classroomName.includes(searchTerm)) {
-                                card.classList.remove('hidden');
+                            // Make sure we're getting the actual classroom name from the card
+                            const classroomNameElement = card.querySelector('h4');
+                            // Only proceed if we found the element
+                            if (classroomNameElement) {
+                                const classroomName = classroomNameElement.textContent.toLowerCase();
+                                if (searchTerm === '' || classroomName.includes(searchTerm)) {
+                                    card.classList.remove('hidden');
+                                } else {
+                                    card.classList.add('hidden');
+                                }
                             } else {
-                                card.classList.add('hidden');
+                                console.warn('Could not find classroom name element in card', card);
                             }
                         });
                     };
@@ -764,10 +768,10 @@
                     const studentCard = document.createElement('div');
                     studentCard.className = 'flex justify-between items-center bg-white/80 p-4 rounded-xl hover:bg-white transition-all duration-200 shadow-md border border-white/50 transform hover:scale-102';
                     
-                    // Handle potential differences in data structure (studentName vs name)
-                    const studentName = att.studentName || att.name || 'Unknown Student';
+                    // Handle potential differences in data structure (studentName vs name)                    const studentName = att.studentName || att.name || 'Unknown Student';
                     const daysPresent = att.daysPresent || att.days || 0;
                     const studentId = att.studentId || att.id || '';
+                    const classroomName = att.classroomName || '';
                     
                     // Create different badge styles for top attendees
                     let rankBadge = '';
@@ -797,19 +801,21 @@
                             <div class="w-10 h-10 rounded-full bg-gradient-to-r ${rankClass} flex items-center justify-center mr-3 shadow-sm">
                                 <i class="fas ${iconClass}"></i>
                             </div>
-                            <div>
-                                <div class="flex items-center">
+                            <div>                                <div class="flex items-center">
                                     <span class="bg-gradient-to-r ${rankClass} text-xs px-2 py-0.5 rounded-full font-bold mr-2">${rankBadge}</span>
                                     <p class="font-medium text-gray-800">${studentName}</p>
                                 </div>
-                                <p class="text-xs text-gray-500">${studentId ? 'รหัส: ' + studentId : ''}</p>
+                                <div class="flex items-center flex-wrap gap-1 mt-0.5">
+                                    ${studentId ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600"><i class="fas fa-id-card mr-0.5 text-gray-400 text-xs"></i>${studentId}</span>` : ''}
+                                    ${classroomName ? `<span class="text-xs bg-pastel-blue/20 px-1.5 py-0.5 rounded text-pastel-blue"><i class="fas fa-chalkboard-teacher mr-0.5 text-pastel-blue/70 text-xs"></i>${classroomName}</span>` : ''}
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex items-center">
+                        </div>                        <div class="flex flex-col items-end">
                             <div class="bg-gradient-to-r from-pastel-green to-pastel-mint px-3 py-1.5 rounded-lg shadow-sm">
                                 <span class="font-bold text-gray-800">${daysPresent}</span>
                                 <span class="text-sm text-gray-700"> วัน</span>
                             </div>
+                            <span class="text-xs text-gray-500 mt-1">มาเรียนสม่ำเสมอ</span>
                         </div>
                     `;
                     listWrapper.appendChild(studentCard);
@@ -824,9 +830,7 @@
                     </div>
                 `;
             }
-        }
-        
-        function loadDailyStatsChartData() {
+        }function loadDailyStatsChartData() {
             setLoadingState(true, 'Loading daily chart...');
             console.log('Requesting daily stats with token:', currentToken ? 'Token exists' : 'No token!');
             
@@ -1016,18 +1020,16 @@
         }
 
         // --- Error Modal --- (Shared with index.html, ensure it's defined or include if separate)
-        
         function showErrorModal(message, isAuthError = false) {
             document.getElementById('errorContent').textContent = message;
             document.getElementById('errorModal').classList.remove('hidden');
-            const closeButton = document.getElementById('errorModal').querySelector('button');
-            if (isAuthError) {
+            const closeButton = document.getElementById('errorModal').querySelector('button');            if (isAuthError) {
                 closeButton.onclick = function() { closeModalAndMaybeLogout(); };
             } else {
                 closeButton.onclick = function() { closeModal(); };
             }
         }
-
+        
         function closeModal() {
             document.getElementById('errorModal').classList.add('hidden');
         }
@@ -1049,11 +1051,11 @@
             const isExpiredToken = document.getElementById('errorContent').textContent.toLowerCase().includes('token expired');
             if(isLikelyAuthError || isExpiredToken){
                 redirectToLogin('Your session is no longer valid. Please login again.');
-            }
-        }        // Assumed new Code.gs functions:
+            }        }
+        
+        // Assumed new Code.gs functions:
         // google.script.run.getDashboardData(dateFrom, dateTo, currentToken);
         // google.script.run.getDailyAttendanceStats(days, currentToken);
-          // We already have closeModalAndMaybeLogout, so we don't need closeModalAndLogout
     </script>
 </body>
 </html>

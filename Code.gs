@@ -946,12 +946,22 @@ function getDashboardData(dateFromString, dateToString, authToken) {
         name: row[actualClassroomNameIndex] 
     }));
     
+    // Create a lookup map for classroom names
+    const classroomNameMap = new Map();
+    classrooms.forEach(classroom => {
+      classroomNameMap.set(classroom.id.toString().trim(), classroom.name);
+    });
+    
     // Map student data with detected column indexes
-    const students = studentData.map(row => ({ 
+    const students = studentData.map(row => { 
+      const classroomId = row[actualStudentClassroomColIndex];
+      return {
         id: row[actualStudentIDColIndex], 
         name: `${row[actualStudentFirstNameColIndex]} ${row[actualStudentLastNameColIndex]}`, 
-        classroomId: row[actualStudentClassroomColIndex] 
-    }));
+        classroomId: classroomId,
+        classroomName: classroomNameMap.get(classroomId ? classroomId.toString().trim() : '') || 'ไม่ระบุห้องเรียน'
+      };
+    });
 
     const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
     let filterStartDate = dateFromString ? new Date(dateFromString) : null;
@@ -974,6 +984,7 @@ function getDashboardData(dateFromString, dateToString, authToken) {
     const stats = {
       totalPresentToday: 0,
       totalAbsentToday: 0,
+      totalLateToday: 0,
       overallAttendanceRateToday: 0,
       overallClassroomBreakdown: [],
       topAttendees: []
@@ -1002,30 +1013,55 @@ function getDashboardData(dateFromString, dateToString, authToken) {
       // Access other fields with appropriate column indexes
       const studentId = row[actualAttendanceStudentIDColIndex];
       const status = row[actualAttendanceStatusColIndex] ? row[actualAttendanceStatusColIndex].toString().toLowerCase() : '';
-      const classroomNameFromAttendance = row[actualAttendanceClassroomColIndex]; // Classroom name as recorded in attendance      // Today's overall stats - use formatted date for comparison
+      let classroomId = row[actualAttendanceClassroomColIndex]; // This might be either ID or name depending on format
+      
+      // Find the proper classroom name
+      let classroomName;
+      
+      // Try to determine if the value is an ID or already a name by checking our mapping
+      if (classroomId && classroomNameMap.has(classroomId.toString().trim())) {
+        classroomName = classroomNameMap.get(classroomId.toString().trim());
+      } else {
+        // If not found in mapping, the value might already be a name or an unknown ID
+        classroomName = classroomId || 'ไม่ระบุห้องเรียน';
+      }      // Today's overall stats - use formatted date for comparison
       const isToday = recordDateFormatted === today;
       if (isToday) {
-        // Check for various present/late status formats
-        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
+        // Check for various present status formats
+        if (status === 'present' || status === 'มา') {
           stats.totalPresentToday++;
         } 
+        // Check for late status
+        else if (status === 'late' || status === 'สาย') {
+          stats.totalLateToday++;
+          stats.totalPresentToday++; // Count late as present for overall stats
+        }
         // Check for various absent status formats
         else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
           stats.totalAbsentToday++;
         }
       }      // Today's classroom stats
-      if (isToday && classroomNameFromAttendance) {
-        let classroomTodayStat = todayClassroomStatsMap.get(classroomNameFromAttendance);
+      if (isToday && classroomName) {
+        let classroomTodayStat = todayClassroomStatsMap.get(classroomName);
         if (!classroomTodayStat) {
-          classroomTodayStat = { classroomName: classroomNameFromAttendance, present: 0, absent: 0, total: 0 };
-          todayClassroomStatsMap.set(classroomNameFromAttendance, classroomTodayStat);
+          classroomTodayStat = { 
+            classroomName: classroomName, 
+            present: 0, 
+            late: 0,
+            absent: 0, 
+            total: 0 
+          };
+          todayClassroomStatsMap.set(classroomName, classroomTodayStat);
         }
         
-        // Check for various present/late status formats
-        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
+        // Check for various status formats with separated late count
+        if (status === 'present' || status === 'มา') {
           classroomTodayStat.present++;
         } 
-        // Check for various absent status formats
+        else if (status === 'late' || status === 'สาย') {
+          classroomTodayStat.late++;
+          // Don't increment present, we'll show late separately
+        }
         else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
           classroomTodayStat.absent++;
         }
@@ -1040,24 +1076,37 @@ function getDashboardData(dateFromString, dateToString, authToken) {
       if (filterStartDate && recordDate < filterStartDate) isInDateRange = false;
       if (filterEndDate && recordDate > filterEndDate) isInDateRange = false;
 
-      if (isInDateRange && classroomNameFromAttendance) {
+      if (isInDateRange && classroomName) {
         // Overall classroom breakdown for selected range
-        let classroomOverallStat = overallClassroomStatsMap.get(classroomNameFromAttendance);
+        let classroomOverallStat = overallClassroomStatsMap.get(classroomName);
         if (!classroomOverallStat) {
-          classroomOverallStat = { name: classroomNameFromAttendance, present: 0, absent: 0, total: 0 };
-          overallClassroomStatsMap.set(classroomNameFromAttendance, classroomOverallStat);
+          classroomOverallStat = { 
+            name: classroomName, 
+            present: 0, 
+            late: 0,
+            absent: 0, 
+            total: 0 
+          };
+          overallClassroomStatsMap.set(classroomName, classroomOverallStat);
         }
         
-        // Check for various present/late status formats
-        if (status === 'present' || status === 'late' || status === 'มา' || status === 'สาย') {
+        // Check for various status formats with separated late count
+        if (status === 'present' || status === 'มา') {
           classroomOverallStat.present++;
           
-          // Track top attendees only for present/late statuses
+          // Track top attendees for present statuses
           if (studentId) {
             studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
           }
         } 
-        // Check for various absent status formats
+        else if (status === 'late' || status === 'สาย') {
+          classroomOverallStat.late++;
+          
+          // Track top attendees for late statuses too
+          if (studentId) {
+            studentAttendanceCount.set(studentId, (studentAttendanceCount.get(studentId) || 0) + 1);
+          }
+        }
         else if (status === 'absent' || status === 'ขาด' || status === 'ลา') {
           classroomOverallStat.absent++;
         }
@@ -1079,34 +1128,40 @@ function getDashboardData(dateFromString, dateToString, authToken) {
     // Format today's classroom stats
     const todayClassroomStats = [];
     todayClassroomStatsMap.forEach(cs => {
-      cs.rate = cs.total > 0 ? (cs.present / cs.total) * 100 : 0;
+      cs.rate = cs.total > 0 ? ((cs.present + cs.late) / cs.total) * 100 : 0;
       todayClassroomStats.push(cs);
     });
 
     // Format overall classroom breakdown for selected range
     overallClassroomStatsMap.forEach(cs => {
-      cs.rate = cs.total > 0 ? (cs.present / cs.total) * 100 : 0;
+      cs.rate = cs.total > 0 ? ((cs.present + cs.late) / cs.total) * 100 : 0;
       stats.overallClassroomBreakdown.push(cs);
     });
 
-    // Format top attendees
+    // Format top attendees with proper student names
     const sortedTopAttendees = Array.from(studentAttendanceCount.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10) // Top 10
       .map(([studentId, daysPresent]) => {
         const studentDetail = students.find(s => s.id.toString() === studentId.toString());
-        return { studentName: studentDetail ? studentDetail.name : 'Unknown Student', daysPresent };
+        const studentName = studentDetail ? studentDetail.name : 'Unknown Student';
+        // Include classroom name if available
+        const classroomName = studentDetail ? studentDetail.classroomName : '';
+        
+        return { 
+          studentName: studentName, 
+          daysPresent: daysPresent,
+          classroomName: classroomName
+        };
       });
-    stats.topAttendees = sortedTopAttendees;    // Make sure topAttendees exists in the stats object
-    if (!stats.topAttendees) {
-      stats.topAttendees = sortedTopAttendees;
-    }
+    stats.topAttendees = sortedTopAttendees;
 
     // Include detailed logging for troubleshooting
     Logger.log('getDashboardData returning - Stats structure: ' + 
               JSON.stringify({
                 totalPresent: stats.totalPresentToday,
                 totalAbsent: stats.totalAbsentToday,
+                totalLate: stats.totalLateToday,
                 rate: stats.overallAttendanceRateToday,
                 hasClassrooms: stats.overallClassroomBreakdown.length > 0,
                 hasTopAttendees: stats.topAttendees.length > 0,
@@ -1188,8 +1243,7 @@ function getDailyAttendanceStats(days, authToken) {
       attendanceData.shift();
     }
     
-    Logger.log(`Daily stats - Using column indexes - Date: ${actualDateColIndex}, Status: ${actualStatusColIndex}`);
-    
+    Logger.log(`Daily stats - Using column indexes - Date: ${actualDateColIndex}, Status: ${actualStatusColIndex}`);    
     // Populate stats from attendance data
     attendanceData.forEach(row => {
       if (!row || row.length <= Math.max(actualDateColIndex, actualStatusColIndex)) { 
@@ -1249,11 +1303,12 @@ function getDailyAttendanceStats(days, authToken) {
 // Remove: function getUserRoleClient(sessionId) { ... }
 // Remove: function getCurrentUser() { ... }
 
-// Ensure initializeUsersSheet and addInitialAdminUser are still present and correct
-// ... (initializeUsersSheet, addInitialAdminUser, hashPassword, customBytesToHex, generateSalt, verifyUser, addUser functions should remain largely unchanged as they deal with user persistence, not session/auth token type)
-
 /**
- * ฟังก์ชันตรวจสอบและแก้ไขข้อมูลใน sheet Students ให้ตรงกับ sheet Classrooms
+ * Validates and fixes student sheet data to ensure it's in sync with classroom data
+ * - Ensures all students have valid classroom IDs
+ * - Fixes student data when classroom IDs have changed
+ * - Reports any issues found during validation
+ * @returns {Object} Result object with success status and message
  */
 function validateAndFixStudentSheetData() {
   try {
@@ -1263,336 +1318,120 @@ function validateAndFixStudentSheetData() {
     const classroomsSheet = ss.getSheetByName(CLASSROOMS_SHEET_NAME);
     
     if (!studentsSheet || !classroomsSheet) {
-      Logger.log('Error: One or both sheets are missing.');
       return {
         success: false,
-        message: 'One or both required sheets are missing.'
+        message: 'Missing Student or Classroom sheets',
+        studentsFixed: false
       };
     }
     
-    // 1. ตรวจสอบ header ของ sheet Students
-    const studentsHeader = studentsSheet.getRange(1, 1, 1, studentsSheet.getLastColumn()).getValues()[0];
-    const roomIdColIndex = studentsHeader.findIndex(header => 
-        header && (
-            header.toString().trim() === 'ห้องเรียนID' || 
-            header.toString().trim().toLowerCase() === 'classroomid' ||
-            header.toString().trim().toLowerCase() === 'classroom id' ||
-            header.toString().trim() === 'ห้องเรียน'
-        )
-    );
+    // Get data from sheets
+    const studentsData = studentsSheet.getDataRange().getValues();
+    const classroomsData = classroomsSheet.getDataRange().getValues();
     
-    // หาก header ไม่ถูกต้อง ให้แก้ไข
-    if (roomIdColIndex === -1) {
-      Logger.log('Student sheet has incorrect headers. Fixing...');
-      // ตรวจสอบว่ามีข้อมูลอยู่หรือไม่ก่อนที่จะแก้ไข header
-      const lastRow = studentsSheet.getLastRow();
-      const hasData = lastRow > 1;
-      
-      // เก็บข้อมูลเดิม (ถ้ามี)
-      let oldData = [];
-      if (hasData) {
-        oldData = studentsSheet.getRange(2, 1, lastRow - 1, studentsSheet.getLastColumn()).getValues();
-      }
-      
-      // ล้าง sheet และสร้าง header ใหม่
-      studentsSheet.clear();
-      studentsSheet.getRange(1, 1, 1, 4).setValues([
-        ['รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ห้องเรียนID']
-      ]);
-      const headerRange = studentsSheet.getRange(1, 1, 1, 4);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#E1BAFF');
-      headerRange.setHorizontalAlignment('center');
-      
-      // คืนข้อมูลเดิม (ถ้ามี) โดยปรับให้เข้ากับโครงสร้างใหม่
-      if (hasData && oldData.length > 0) {
-        // เตรียมข้อมูลที่ปรับแล้ว
-        const fixedData = oldData.map(row => {
-          // สร้างแถวข้อมูลใหม่ที่มี 4 คอลัมน์
-          let newRow = [null, null, null, null];
-          
-          // คัดลอกข้อมูลเท่าที่มี
-          for (let i = 0; i < Math.min(row.length, 4); i++) {
-            newRow[i] = row[i];
-          }
-          
-          // ตรวจสอบว่าคอลัมน์ห้องเรียน (index 3) มีข้อมูลหรือไม่
-          // ถ้าไม่มี ให้ใส่ 'C101' เป็นค่าเริ่มต้น
-          if (!newRow[3]) {
-            newRow[3] = 'C101';
-          }
-          
-          return newRow;
-        });
-        
-        // เขียนข้อมูลลง sheet
-        if (fixedData.length > 0) {
-          studentsSheet.getRange(2, 1, fixedData.length, 4).setValues(fixedData);
-        }
-      } else {
-        // ถ้าไม่มีข้อมูลเดิม ให้เพิ่มข้อมูลตัวอย่าง
-        studentsSheet.getRange(2, 1, 5, 4).setValues([
-          ['S20001', 'สมชาย', 'ใจดี', 'C101'],
-          ['S20002', 'สมหญิง', 'ใจงาม', 'C101'],
-          ['S20003', 'ประเสริฐ', 'เก่งเก้า', 'C102'],
-          ['S20004', 'วรรณา', 'สวยงาม', 'C102'],
-          ['S20005', 'ชัยวัฒน์', 'รุ่งเรือง', 'C103']
-        ]);
-      }
+    if (studentsData.length <= 1 || classroomsData.length <= 1) {
+      // Only headers or empty
+      return {
+        success: true, 
+        message: 'No data to validate',
+        studentsFixed: false
+      };
     }
     
-    // 2. ตรวจสอบความถูกต้องของรหัสห้องเรียนใน sheet Students เทียบกับ sheet Classrooms
-    const studentsData = studentsSheet.getDataRange().getValues();
-    const studentsHeaders = studentsData.shift(); // ลบ header ออก
+    // Extract header rows
+    const studentsHeader = studentsData[0];
+    const classroomsHeader = classroomsData[0];
     
-    // ตรวจสอบหา index ของคอลัมน์ห้องเรียน (ควรจะเป็น 3 หรือ D)
-    const classroomIdColIndex = studentsHeaders.findIndex(header => 
-        header && (
-            header.toString().trim() === 'ห้องเรียนID' || 
-            header.toString().trim().toLowerCase() === 'classroomid' ||
-            header.toString().trim() === 'ห้องเรียน'
-        )
+    // Find index of classroom ID column in students sheet
+    const classroomIdColIndex = studentsHeader.findIndex(header => 
+      header && (header.toString().trim() === 'ห้องเรียนID' || 
+                header.toString().trim().toLowerCase() === 'classroomid' ||
+                header.toString().trim() === 'ห้องเรียน' ||
+                header.toString().trim().toLowerCase() === 'classroom' ||
+                header.toString().trim().toLowerCase() === 'classroom id')
     );
     
     if (classroomIdColIndex === -1) {
-      Logger.log('Error: Still cannot find classroom column in student sheet after fixing headers.');
+      Logger.log('Warning: Could not find classroom ID column in students sheet');
       return {
         success: false,
-        message: 'Cannot find classroom column in student sheet.'
+        message: 'Could not find classroom ID column in students sheet',
+        studentsFixed: false
       };
     }
     
-    // ดึงข้อมูลรหัสห้องเรียนทั้งหมดจาก sheet Classrooms
-    const classroomsData = classroomsSheet.getDataRange().getValues();
-    classroomsData.shift(); // ลบ header ออก
-    const validClassroomIds = classroomsData.map(row => row[0].toString().trim());
+    // Create a set of valid classroom IDs from classrooms sheet (first column should be ID)
+    const validClassroomIds = new Set();
+    for (let i = 1; i < classroomsData.length; i++) {
+      if (classroomsData[i][0]) {
+        validClassroomIds.add(classroomsData[i][0].toString().trim());
+      }
+    }
     
-    // ตรวจสอบว่านักเรียนแต่ละคนอยู่ในห้องเรียนที่มีอยู่จริงหรือไม่
-    let needsFix = false;
-    let fixedStudentsData = studentsData.map(row => {
-      const classroomId = row[classroomIdColIndex] ? row[classroomIdColIndex].toString().trim() : '';
+    Logger.log(`Found ${validClassroomIds.size} valid classroom IDs: ${Array.from(validClassroomIds).join(', ')}`);
+    
+    // Track students with invalid classroom IDs
+    let studentsWithInvalidIds = 0;
+    let studentsWithEmptyIds = 0;
+    let studentsFixed = false;
+    
+    // Check each student and fix if necessary
+    for (let i = 1; i < studentsData.length; i++) {
+      const classroomId = studentsData[i][classroomIdColIndex];
       
-      // ถ้าห้องเรียนของนักเรียนไม่มีอยู่ใน sheet Classrooms
-      if (classroomId === '' || !validClassroomIds.includes(classroomId)) {
-        needsFix = true;
-        // กำหนดห้องเรียนแรกในรายการให้กับนักเรียน
-        row[classroomIdColIndex] = validClassroomIds[0] || 'C101';
-      }
+      // Skip empty rows
+      if (!studentsData[i][0]) continue;
       
-      return row;
-    });
-    
-    // อัปเดต sheet Students ด้วยข้อมูลที่แก้ไขแล้ว
-    if (needsFix && fixedStudentsData.length > 0) {
-      Logger.log('Fixing classroom IDs for students...');
-      studentsSheet.getRange(2, 1, fixedStudentsData.length, studentsSheet.getLastColumn()).setValues(fixedStudentsData);
-    }
-    
-    Logger.log('Student sheet validation complete.');
-    return {
-      success: true,
-      message: 'Student sheet validation and fix complete.',
-      studentsFixed: needsFix
-    };
-  } catch (error) {
-    Logger.log(`Error in validateAndFixStudentSheetData: ${error.message} Stack: ${error.stack}`);
-    return {
-      success: false,
-      message: 'Error validating student sheet: ' + error.message
-    };
-  }
-}
-
-// เรียกใช้ฟังก์ชัน validateAndFixStudentSheetData จากฟังก์ชัน initializeSheets
-function initializeSheets() {
-  Logger.log('ENTERING initializeSheets'); 
-  try {
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // สร้างหรือตรวจสอบ Sheet สำหรับข้อมูลนักเรียน
-    let studentSheet = spreadsheet.getSheetByName(STUDENTS_SHEET_NAME);
-    if (!studentSheet) {
-      studentSheet = spreadsheet.insertSheet(STUDENTS_SHEET_NAME);
-    }
-    const studentLastRow = studentSheet.getLastRow();
-    if (studentLastRow === 0 || studentSheet.getRange(1, 1).getValue() === '') {
-      studentSheet.getRange(1, 1, 1, 4).setValues([
-        ['รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ห้องเรียนID']
-      ]);
-      const headerRange = studentSheet.getRange(1, 1, 1, 4);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#E1BAFF');
-      headerRange.setHorizontalAlignment('center');
-      if (studentLastRow === 0) {
-        studentSheet.getRange(2, 1, 5, 4).setValues([
-          ['S20001', 'สมชาย', 'ใจดี', 'C101'],
-          ['S20002', 'สมหญิง', 'ใจงาม', 'C101'],
-          ['S20003', 'ประเสริฐ', 'เก่งเก้า', 'C102'],
-          ['S20004', 'วรรณา', 'สวยงาม', 'C102'],
-          ['S20005', 'ชัยวัฒน์', 'รุ่งเรือง', 'C103']
-        ]);
-      }
-    }
-
-    // สร้างหรือตรวจสอบ Sheet สำหรับข้อมูลห้องเรียน
-    let classroomSheet = spreadsheet.getSheetByName(CLASSROOMS_SHEET_NAME);
-    if (!classroomSheet) {
-      classroomSheet = spreadsheet.insertSheet(CLASSROOMS_SHEET_NAME);
-    }
-    const classroomLastRow = classroomSheet.getLastRow();
-    if (classroomLastRow === 0 || classroomSheet.getRange(1, 1).getValue() === '') {
-      classroomSheet.getRange(1, 1, 1, 2).setValues([
-        ['ห้องเรียนID', 'ชื่อห้องเรียน']
-      ]);
-      const headerRange = classroomSheet.getRange(1, 1, 1, 2);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#BAE1FF');
-      headerRange.setHorizontalAlignment('center');
-      if (classroomLastRow === 0) {
-          classroomSheet.getRange(2, 1, 3, 2).setValues([
-              ['C101', 'ม.1/1'],
-              ['C102', 'ม.1/2'],
-              ['C103', 'ม.1/3']
-          ]);
-      }
-    }
-    
-    // สร้างหรือตรวจสอบ Sheet สำหรับข้อมูลการเข้าเรียน
-    let attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
-    if (!attendanceSheet) {
-      attendanceSheet = spreadsheet.insertSheet(ATTENDANCE_SHEET_NAME);
-    }
-    const attendanceLastRow = attendanceSheet.getLastRow();
-    if (attendanceLastRow === 0 || attendanceSheet.getRange(1, 1).getValue() === '') {
-      attendanceSheet.getRange(1, 1, 1, 6).setValues([
-        ['วันที่', 'เวลา', 'รหัสนักเรียน', 'ชื่อ-นามสกุล', 'ห้องเรียน', 'สถานะ']
-      ]);
-      const headerRange = attendanceSheet.getRange(1, 1, 1, 6);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#BAFFC9');
-      headerRange.setHorizontalAlignment('center');
-    }
-    
-    Logger.log('initializeSheets: About to call initializeUsersSheet');
-    initializeUsersSheet(); 
-    Logger.log('initializeSheets: Returned from initializeUsersSheet SUCCESSFULLY');
-    
-    // ตรวจสอบและแก้ไขข้อมูลใน sheet Students
-    Logger.log('initializeSheets: About to validate and fix student sheet data');
-    const validationResult = validateAndFixStudentSheetData();
-    if (validationResult.success) {
-      Logger.log('initializeSheets: Student sheet validation complete: ' + validationResult.message);
-      if (validationResult.studentsFixed) {
-        Logger.log('initializeSheets: Some student data was fixed to match classroom data.');
-      }
-    } else {
-      Logger.log('initializeSheets: Warning - Student sheet validation failed: ' + validationResult.message);
-      // ไม่ throw error เพื่อให้โปรแกรมยังทำงานต่อไปได้
-    }
-    
-    Logger.log('initializeSheets: About to get spreadsheet ID.');
-    const id = spreadsheet.getId();
-    Logger.log('initializeSheets: spreadsheet.getId() succeeded: ' + id);
-
-    const returnValue = {
-      success: true,
-      spreadsheetId: id,
-      message: 'เตรียม Sheets เรียบร้อยแล้ว' + 
-        (validationResult.studentsFixed ? ' (ได้ทำการแก้ไขข้อมูลนักเรียนบางส่วนให้ตรงกับห้องเรียน)' : '')
-    };
-    Logger.log('initializeSheets: Success object constructed. About to return.');
-    return returnValue;
-    
-  } catch (error) {
-    Logger.log('ERROR INSIDE initializeSheets: ' + error.toString() + ' Stack: ' + error.stack);
-    // console.error('Error initializing sheets:', error); // Original line
-    // return { // Original block
-    //   success: false,
-    //   message: 'เกิดข้อผิดพลาดในการเตรียม Sheets: ' + error.message
-    // };
-    throw error; // Re-throw to be caught by doGet, to match current behavior and provide stack to client if possible
-  }
-}
-
-// Function to get today's attendance records for a specific classroom
-function getTodayAttendanceByClassroom(classroomId, authToken) {
-  const verificationResult = verifyJwt(authToken);
-  if (!verificationResult.valid) {
-    return { 
-      success: false, 
-      error: 'Authentication failed: ' + verificationResult.error, 
-      attendanceRecords: [], 
-      expired: verificationResult.expired || false 
-    };
-  }
-
-  Logger.log(`User ${verificationResult.payload.user.username} requesting today's attendance for classroom ID: ${classroomId}`);
-  
-  if (!classroomId) {
-    return { success: false, error: 'Classroom ID not provided.', attendanceRecords: [] };
-  }
-
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const attendanceSheet = ss.getSheetByName(ATTENDANCE_SHEET_NAME);
-    
-    if (!attendanceSheet) {
-      return { success: false, error: 'Attendance sheet not found.', attendanceRecords: [] };
-    }
-    
-    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    const attendanceData = attendanceSheet.getDataRange().getValues();
-    
-    // Get headers
-    const headers = attendanceData.shift();
-    
-    // Find the relevant column indexes
-    const dateColIndex = 0; // Date is typically the first column
-    const studentIdColIndex = 2; // Student ID is typically the third column
-    const classroomColIndex = 4; // Classroom is typically the fifth column
-    const statusColIndex = 5; // Status is typically the sixth column
-    
-    // Filter records for today and the specified classroom
-    const todaysRecords = attendanceData.filter(row => {
-      if (!row || row.length <= Math.max(dateColIndex, classroomColIndex, statusColIndex)) {
-        return false;
-      }
-      
-      let recordDate;
-      if (row[dateColIndex] instanceof Date) {
-        recordDate = Utilities.formatDate(row[dateColIndex], Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      } else {
-        try {
-          recordDate = Utilities.formatDate(new Date(row[dateColIndex]), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        } catch (e) {
-          return false; // Skip if date can't be parsed
+      if (!classroomId) {
+        studentsWithEmptyIds++;
+        Logger.log(`Student at row ${i+1} has empty classroom ID`);
+        
+        // We could set a default classroom ID here if needed
+        if (validClassroomIds.size > 0) {
+          const defaultClassroomId = Array.from(validClassroomIds)[0];
+          studentsSheet.getRange(i + 1, classroomIdColIndex + 1).setValue(defaultClassroomId);
+          Logger.log(`Fixed student at row ${i+1} by setting default classroom ID: ${defaultClassroomId}`);
+          studentsFixed = true;
+        }
+      } 
+      else if (!validClassroomIds.has(classroomId.toString().trim())) {
+        studentsWithInvalidIds++;
+        Logger.log(`Student at row ${i+1} has invalid classroom ID: ${classroomId}`);
+        
+        // Fix invalid classroom ID by setting a valid one if available
+        if (validClassroomIds.size > 0) {
+          const defaultClassroomId = Array.from(validClassroomIds)[0];
+          studentsSheet.getRange(i + 1, classroomIdColIndex + 1).setValue(defaultClassroomId);
+          Logger.log(`Fixed student at row ${i+1} by replacing invalid ID ${classroomId} with valid ID: ${defaultClassroomId}`);
+          studentsFixed = true;
         }
       }
-      
-      // Match both date and classroom
-      return recordDate === today && 
-             row[classroomColIndex] && 
-             row[classroomColIndex].toString().trim() === classroomId.toString().trim();
-    });
+    }
     
-    // Convert to a more usable format - mapping student IDs to their attendance status
-    const attendanceMap = {};
-    todaysRecords.forEach(record => {
-      // If multiple records exist for a student, take the latest one (as they appear in order in the sheet)
-      attendanceMap[record[studentIdColIndex]] = record[statusColIndex].toString().toLowerCase();
-    });
+    const totalStudents = studentsData.length - 1;
+    const validStudents = totalStudents - studentsWithInvalidIds - studentsWithEmptyIds;
     
-    return { 
-      success: true, 
-      attendanceRecords: attendanceMap, 
-      date: today 
+    let resultMessage = `Validated ${totalStudents} students: ${validStudents} valid, ${studentsWithInvalidIds} with invalid classroom IDs, ${studentsWithEmptyIds} with empty classroom IDs.`;
+    if (studentsFixed) {
+      resultMessage += ' Some student records were automatically fixed.';
+    }
+    
+    return {
+      success: true,
+      message: resultMessage,
+      studentsFixed: studentsFixed,
+      totalStudents: totalStudents,
+      validStudents: validStudents,
+      studentsWithInvalidIds: studentsWithInvalidIds,
+      studentsWithEmptyIds: studentsWithEmptyIds
     };
+    
   } catch (error) {
-    Logger.log('Error fetching today\'s attendance: ' + error.message);
-    return { 
-      success: false, 
-      error: 'Error fetching attendance records: ' + error.message, 
-      attendanceRecords: [] 
+    Logger.log('Error validating student sheet data: ' + error.message);
+    return {
+      success: false,
+      message: 'Error during validation: ' + error.message,
+      studentsFixed: false
     };
   }
 }

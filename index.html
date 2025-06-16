@@ -76,8 +76,7 @@
                         </div>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <!-- Navigation -->
-                        <div class="flex space-x-2">
+                        <!-- Navigation -->                        <div class="flex space-x-2">
                             <a 
                                 href="#" 
                                 id="navIndexLink"
@@ -95,6 +94,14 @@
                             >
                                 <i class="fas fa-chart-pie mr-1"></i>
                                 Dashboard
+                            </a>                            <a 
+                                href="#" 
+                                id="navSearchLink"
+                                onclick="navigateTo('search')" 
+                                class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70 hidden"
+                            >
+                                <i class="fas fa-search mr-1"></i>
+                                ค้นหา
                             </a>
                         </div>
                         <div id="userInfoDisplay" class="text-sm text-gray-700"></div>
@@ -252,19 +259,18 @@
                         <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                             <i class="fas fa-chart-bar text-pastel-purple mr-2"></i>
                             สถิติการเข้าแถว
-                        </h3>
-                        <div class="space-y-4">
+                        </h3>                        <div class="space-y-4">
                             <div class="flex justify-between items-center">
                                 <span class="text-gray-600">เข้าแถว</span>
-                                <span class="text-2xl font-bold text-pastel-green" id="statsPresent">0</span>
+                                <span class="text-2xl font-bold text-green-600" id="statsPresent">0</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-gray-600">ไม่เข้าแถว</span>
-                                <span class="text-2xl font-bold text-red-400" id="statsAbsent">0</span>
+                                <span class="text-2xl font-bold text-red-500" id="statsAbsent">0</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-gray-600">ยังไม่บันทึก</span>
-                                <span class="text-2xl font-bold text-gray-400" id="statsUnmarked">0</span>
+                                <span class="text-2xl font-bold text-gray-500" id="statsUnmarked">0</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-3">
                                 <div id="attendanceProgress" class="bg-gradient-to-r from-pastel-green to-pastel-mint h-3 rounded-full" style="width: 0%"></div>
@@ -403,11 +409,10 @@
                             .logoutUser(currentToken); // Pass token if server needs it for blocklisting etc.
                 });
             }
-        }
-
-            function setupNavigation() {
+        }            function setupNavigation() {
                 const navIndexLink = document.getElementById('navIndexLink');
                 const navDashboardLink = document.getElementById('navDashboardLink');
+                const navSearchLink = document.getElementById('navSearchLink');
 
                 if (navIndexLink) {
                     navIndexLink.onclick = function(e) { e.preventDefault(); navigateTo('index'); };
@@ -419,6 +424,15 @@
                         navDashboardLink.classList.remove('hidden'); 
                     } else {
                         navDashboardLink.classList.add('hidden');
+                    }
+                }
+                if (navSearchLink) {
+                    navSearchLink.onclick = function(e) { e.preventDefault(); navigateTo('search'); };
+                    // Show search link only if admin/teacher
+                    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'teacher')) {
+                        navSearchLink.classList.remove('hidden'); 
+                    } else {
+                        navSearchLink.classList.add('hidden');
                     }
                 }
             }

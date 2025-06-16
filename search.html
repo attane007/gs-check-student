@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ค้นหาข้อมูลการเข้าแถว - ระบบเช็คชื่อการเข้าแถวตอนเช้า</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'pastel-pink': '#FFE1E6',
+                        'pastel-blue': '#E1F0FF',
+                        'pastel-green': '#E1FFE1',
+                        'pastel-yellow': '#FFFCE1',
+                        'pastel-purple': '#F0E1FF',
+                        'pastel-mint': '#E1FFF5',
+                        'pastel-peach': '#FFE8E1',
+                        'pastel-coral': '#FFD1DC',
+                        'pastel-sky': '#E1F7FF'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Kanit', sans-serif;
+        }
+        .glass-effect {
+            background-color: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(209, 213, 219, 0.3);
+        }
+        .blur-backdrop {
+            backdrop-filter: blur(10px);
+        }
+        .simple-hover:hover {
+            opacity: 0.9;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-pastel-sky via-pastel-blue to-pastel-purple">
+    <!-- Authentication Message Area -->
+    <div id="authMessageArea" class="hidden fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
+        <div class="text-center p-8 bg-white shadow-lg rounded-lg">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
+            <p id="authMessageText" class="text-gray-600 mb-6">You need to be logged in to access this page.</p>
+            <a id="authLoginLink" href="#" class="bg-pastel-purple text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90">
+                Go to Login
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content Wrapper -->
+    <div id="mainContentWrapper">
+        <!-- Header -->
+        <header class="glass-effect blur-backdrop border-b border-white/20 sticky top-0 z-50">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-gradient-to-r from-pastel-purple to-pastel-blue rounded-full flex items-center justify-center">
+                            <i class="fas fa-search text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-800">ค้นหาข้อมูลการเข้าแถว</h1>
+                            <p class="text-sm text-gray-600" id="currentDateTime"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Navigation -->
+                        <div class="flex space-x-2">
+                            <a 
+                                href="#" 
+                                id="navIndexLink"
+                                onclick="navigateTo('index')" 
+                                class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70"
+                            >
+                                <i class="fas fa-check-circle mr-1"></i>
+                                เช็คชื่อ
+                            </a>
+                            <a 
+                                href="#" 
+                                id="navDashboardLink"
+                                onclick="navigateTo('dashboard')" 
+                                class="px-4 py-2 rounded-lg font-semibold bg-white/50 text-gray-600 hover:bg-white/70"
+                            >
+                                <i class="fas fa-chart-pie mr-1"></i>
+                                Dashboard
+                            </a>
+                            <a 
+                                href="#" 
+                                id="navSearchLink"
+                                onclick="navigateTo('search')" 
+                                class="px-4 py-2 rounded-lg font-semibold bg-pastel-sky text-blue-800"
+                            >
+                                <i class="fas fa-search mr-1"></i>
+                                ค้นหา
+                            </a>
+                        </div>
+                        <div id="userInfoDisplay" class="text-sm text-gray-700"></div>
+                        <button 
+                            id="logoutButton" 
+                            class="hidden bg-gradient-to-r from-pastel-coral to-pastel-pink text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+                        >
+                            <i class="fas fa-sign-out-alt mr-1"></i>
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="container mx-auto px-4 py-8">
+            <!-- Search Section -->
+            <div class="max-w-4xl mx-auto">
+                <!-- Search Form -->
+                <div class="glass-effect rounded-2xl p-8 mb-8 shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fas fa-calendar-search text-pastel-purple mr-3"></i>
+                        ค้นหาข้อมูลการเข้าแถว
+                    </h2>
+                    
+                    <div class="flex flex-col md:flex-row gap-4 items-end">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-calendar-alt text-pastel-purple mr-2"></i>
+                                เลือกวันที่
+                            </label>
+                            <input type="date" id="searchDate" 
+                                  class="w-full p-3 border border-pastel-purple/40 rounded-lg focus:ring-2 focus:ring-pastel-purple focus:outline-none shadow-sm bg-white/90 text-gray-700">
+                        </div>
+                        <button onclick="searchAttendance()" 
+                            class="bg-gradient-to-r from-pastel-blue to-pastel-sky text-blue-800 hover:text-blue-900 font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-200 shadow-md flex items-center transform hover:scale-105 border border-blue-200">
+                            <i class="fas fa-search mr-2"></i>
+                            ค้นหา
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loadingIndicator" class="hidden glass-effect rounded-2xl p-8 text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-pastel-blue to-pastel-purple rounded-full flex items-center justify-center animate-pulse">
+                        <i class="fas fa-spinner fa-spin text-white text-2xl"></i>
+                    </div>
+                    <p class="text-gray-700 font-medium" id="loadingMessage">กำลังค้นหาข้อมูล...</p>
+                </div>
+
+                <!-- Search Results -->
+                <div id="searchResults" class="hidden">
+                    <div class="glass-effect rounded-2xl p-8 shadow-lg">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-2xl font-bold text-gray-800 flex items-center">
+                                <i class="fas fa-list-ul text-pastel-purple mr-3"></i>
+                                ผลการค้นหา
+                            </h3>
+                            <div class="text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full" id="searchResultDate">
+                                วันที่: -
+                            </div>
+                        </div>
+                        <div id="attendanceResults" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                            <!-- Results will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No Results Message -->
+                <div id="noResults" class="hidden glass-effect rounded-2xl p-8 text-center shadow-lg">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-pastel-yellow to-pastel-peach rounded-full flex items-center justify-center">
+                        <i class="fas fa-search text-yellow-700 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">ไม่พบข้อมูล</h3>
+                    <p class="text-gray-600">ไม่พบข้อมูลการเข้าแถวในวันที่เลือก</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="glass-effect blur-backdrop rounded-2xl p-8 m-4 max-w-md w-full text-center">
+            <div class="w-20 h-20 bg-gradient-to-r from-red-400 to-red-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-2">เกิดข้อผิดพลาด</h3>
+            <div id="errorContent" class="text-gray-700"></div>
+            <button onclick="closeModalAndMaybeLogout()" class="mt-6 bg-gradient-to-r from-pastel-coral to-pastel-pink text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90">
+                ปิด
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const appUrl = '<?!= appUrl ?>'; // Injected by Apps Script doGet
+        let currentUser = null;
+        let currentToken = localStorage.getItem('jwtToken');
+
+        // Helper function for top-level navigation in Apps Script
+        function triggerTopNavigation(url) {
+            window.top.location.href = url;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Search page loading...');
+            
+            currentToken = localStorage.getItem('jwtToken');
+            const storedUserInfo = localStorage.getItem('userInfo');
+            const mainContentWrapper = document.getElementById('mainContentWrapper');
+            const authMessageArea = document.getElementById('authMessageArea');
+            const authLoginLink = document.getElementById('authLoginLink');
+
+            if (!currentToken) {
+                mainContentWrapper.classList.add('hidden');
+                authMessageArea.classList.remove('hidden');
+                authLoginLink.href = appUrl + '?page=login&dest=search';
+                return;
+            }
+
+            // If token exists, hide auth message and show main content
+            mainContentWrapper.classList.remove('hidden');
+            authMessageArea.classList.add('hidden');
+
+            if (storedUserInfo) {
+                currentUser = JSON.parse(storedUserInfo);
+                initializePage();
+            } else {
+                // If token exists but no user info, try to fetch it
+                setLoadingState(true, 'Verifying session...');
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        setLoadingState(false);
+                        if (response.success && response.user) {
+                            currentUser = response.user;
+                            localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                            initializePage();
+                        } else {
+                            handleAuthError(response.error || 'Invalid session. Please login again.', response.expired);
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        setLoadingState(false);
+                        handleAuthError('Error verifying session: ' + error.message);
+                    })
+                    .getUserDataFromToken(currentToken);
+            }
+        });
+
+        function initializePage() {
+            if (!currentUser) {
+                redirectToLogin('User data not available. Please login.');
+                return;
+            }
+            console.log('Search Page User:', currentUser.username, 'Role:', currentUser.role);
+            
+            // Set today as default date
+            const today = new Date();
+            document.getElementById('searchDate').value = formatDateForInput(today);
+            
+            updateUserInfoDisplay();
+            setupLogoutButton();
+            setupNavigation();
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+        }
+
+        function formatDateForInput(date) {
+            return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        }
+
+        function updateUserInfoDisplay() {
+            const userInfoDisplay = document.getElementById('userInfoDisplay');
+            if (userInfoDisplay && currentUser) {
+                userInfoDisplay.textContent = `${currentUser.fullName} (${currentUser.role})`;
+            }
+        }
+
+        function setupLogoutButton() {
+            const logoutButton = document.getElementById('logoutButton');
+            if (logoutButton) {
+                logoutButton.classList.remove('hidden');
+                logoutButton.addEventListener('click', function() {
+                    setLoadingState(true, 'Logging out...');
+                    google.script.run
+                        .withSuccessHandler(function(response) {
+                            localStorage.removeItem('jwtToken');
+                            localStorage.removeItem('userInfo');
+                            redirectToLogin('You have been logged out.');
+                        })
+                        .withFailureHandler(function(error) {
+                            localStorage.removeItem('jwtToken');
+                            localStorage.removeItem('userInfo');
+                            redirectToLogin('Logout completed. Server notification failed.');
+                        })
+                        .logoutUser(currentToken);
+                });
+            }
+        }
+
+        function setupNavigation() {
+            const navIndexLink = document.getElementById('navIndexLink');
+            const navDashboardLink = document.getElementById('navDashboardLink');
+            const navSearchLink = document.getElementById('navSearchLink');
+
+            if (navIndexLink) {
+                navIndexLink.onclick = function(e) { e.preventDefault(); navigateTo('index'); };
+            }
+            if (navDashboardLink) {
+                navDashboardLink.onclick = function(e) { e.preventDefault(); navigateTo('dashboard'); };
+            }
+            if (navSearchLink) {
+                navSearchLink.onclick = function(e) { e.preventDefault(); navigateTo('search'); };
+            }
+        }
+
+        function navigateTo(page) {
+            triggerTopNavigation(appUrl + '?page=' + page);
+        }
+
+        function redirectToLogin(message) {
+            localStorage.removeItem('jwtToken');
+            localStorage.removeItem('userInfo');
+            let loginUrl = appUrl + '?page=login&dest=search';
+            if (message) {
+                loginUrl += '&infoMessage=' + encodeURIComponent(message);
+            }
+            triggerTopNavigation(loginUrl);
+        }
+
+        function handleAuthError(errorMessage, isExpired) {
+            console.error('Auth Error:', errorMessage);
+            showErrorModal('Authentication Error: ' + errorMessage + (isExpired ? ' (Token Expired)' : ''), true);
+        }
+
+        function setLoadingState(isLoading, message = 'กำลังประมวลผล...') {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const searchResults = document.getElementById('searchResults');
+            const noResults = document.getElementById('noResults');
+            
+            if (isLoading) {
+                loadingMessage.textContent = message;
+                loadingIndicator.classList.remove('hidden');
+                searchResults.classList.add('hidden');
+                noResults.classList.add('hidden');
+            } else {
+                loadingIndicator.classList.add('hidden');
+            }
+            console.log(`Loading state: ${isLoading ? 'Loading' : 'Done'} ${message}`);
+        }
+
+        function searchAttendance() {
+            const searchDate = document.getElementById('searchDate').value;
+            
+            if (!searchDate) {
+                showErrorModal('กรุณาเลือกวันที่ที่ต้องการค้นหา');
+                return;
+            }
+
+            setLoadingState(true, 'กำลังค้นหาข้อมูลการเข้าแถว...');
+            console.log('Searching attendance for date:', searchDate);
+            
+            if (!currentToken) {
+                setLoadingState(false);
+                handleAuthError('No authentication token found');
+                return;
+            }
+            
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    setLoadingState(false);
+                    console.log('Search attendance response:', response);
+                    if (response.success) {
+                        updateSearchResults(response.classroomsDetail, searchDate);
+                    } else {
+                        if (response.expired) {
+                            handleAuthError(response.error || 'Token expired', true);
+                        } else {
+                            showErrorModal('Failed to search attendance: ' + (response.error || 'Unknown error'));
+                        }
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    setLoadingState(false);
+                    console.error('Error searching attendance:', error);
+                    showErrorModal('Error searching attendance: ' + error.message);
+                })
+                .searchAttendanceByDate(searchDate, currentToken);
+        }
+
+        function updateSearchResults(classroomsDetail, searchDate) {
+            const searchResults = document.getElementById('searchResults');
+            const noResults = document.getElementById('noResults');
+            const attendanceResults = document.getElementById('attendanceResults');
+            const searchResultDate = document.getElementById('searchResultDate');
+            
+            console.log('Updating search results with:', classroomsDetail);
+            
+            if (!classroomsDetail || classroomsDetail.length === 0) {
+                searchResults.classList.add('hidden');
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            // Update date display
+            searchResultDate.textContent = `วันที่: ${new Date(searchDate).toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            })}`;
+            
+            // Clear previous results
+            attendanceResults.innerHTML = '';
+            
+            classroomsDetail.forEach(classroom => {
+                const classroomDiv = document.createElement('div');
+                classroomDiv.className = 'bg-white/80 rounded-xl p-4 border border-white/50 shadow-sm mb-4';
+                
+                const totalStudents = classroom.present.length + classroom.late.length + classroom.absent.length + classroom.excused.length;
+                const attendingStudents = classroom.present.length + classroom.late.length;
+                const attendanceRate = totalStudents > 0 ? ((attendingStudents / totalStudents) * 100).toFixed(1) : 0;
+                
+                classroomDiv.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-door-open text-pastel-purple mr-2"></i>
+                            ${classroom.classroomName}
+                        </h4>
+                        <div class="text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full">
+                            เข้าแถว: ${attendingStudents}/${totalStudents} (${attendanceRate}%)
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Present Students -->
+                        <div class="bg-gradient-to-br from-pastel-green to-pastel-mint rounded-lg p-3">
+                            <h5 class="font-semibold text-green-800 mb-2 flex items-center">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                เข้าแถว (${classroom.present.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.present.length > 0 ? 
+                                    classroom.present.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Late Students -->
+                        <div class="bg-gradient-to-br from-pastel-yellow to-pastel-peach rounded-lg p-3">
+                            <h5 class="font-semibold text-yellow-800 mb-2 flex items-center">
+                                <i class="fas fa-clock mr-2"></i>
+                                มาสาย (${classroom.late.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.late.length > 0 ? 
+                                    classroom.late.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Absent Students -->
+                        <div class="bg-gradient-to-br from-pastel-coral to-pastel-pink rounded-lg p-3">
+                            <h5 class="font-semibold text-red-800 mb-2 flex items-center">
+                                <i class="fas fa-times-circle mr-2"></i>
+                                ขาด (${classroom.absent.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.absent.length > 0 ? 
+                                    classroom.absent.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Excused Students -->
+                        <div class="bg-gradient-to-br from-pastel-blue to-pastel-sky rounded-lg p-3">
+                            <h5 class="font-semibold text-blue-800 mb-2 flex items-center">
+                                <i class="fas fa-calendar-minus mr-2"></i>
+                                ลา (${classroom.excused.length})
+                            </h5>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${classroom.excused.length > 0 ? 
+                                    classroom.excused.map(student => `
+                                        <div class="text-sm bg-white/50 rounded px-2 py-1">
+                                            ${student.name}
+                                        </div>
+                                    `).join('') : 
+                                    '<div class="text-sm text-gray-600 italic">ไม่มี</div>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                attendanceResults.appendChild(classroomDiv);
+            });
+            
+            searchResults.classList.remove('hidden');
+            noResults.classList.add('hidden');
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('th-TH', options);
+        }
+
+        // Error Modal Functions
+        function showErrorModal(message, isAuthError = false) {
+            document.getElementById('errorContent').textContent = message;
+            document.getElementById('errorModal').classList.remove('hidden');
+            const closeButton = document.getElementById('errorModal').querySelector('button');
+            
+            if (isAuthError) {
+                closeButton.onclick = function() { closeModalAndMaybeLogout(); };
+            } else {
+                closeButton.onclick = function() { closeModal(); };
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('errorModal').classList.add('hidden');
+        }
+
+        function closeModalAndMaybeLogout() {
+            closeModal();
+            const isLikelyAuthError = document.getElementById('errorContent').textContent.toLowerCase().includes('authentication') || document.getElementById('errorContent').textContent.toLowerCase().includes('session');
+            const isExpiredToken = document.getElementById('errorContent').textContent.toLowerCase().includes('token expired');
+            if(isLikelyAuthError || isExpiredToken){
+                redirectToLogin('Your session is no longer valid. Please login again.');
+            }
+        }
+    </script>
+</body>
+</html>

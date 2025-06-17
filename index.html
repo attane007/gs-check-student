@@ -1029,20 +1029,26 @@
                 const classroomInfo = classroomsData.find(c => c.id === selectedClassroom);
                 const classroomName = classroomInfo ? classroomInfo.name : selectedClassroom;
                 
+                // Filter students for selected classroom only
+                const classroomStudents = currentStudents.filter(student => student.classroom === selectedClassroom);
+                
                 // Count attendance stats
-                let total = currentStudents.length;
+                let total = classroomStudents.length;
                 let present = 0;
                 let absent = 0;
                 let late = 0;
                 let excused = 0;
                 let unmarked = 0;
                 
-                for (const studentId in attendanceStatus) {
-                    if (attendanceStatus[studentId] === 'present') present++;
-                    else if (attendanceStatus[studentId] === 'absent') absent++;
-                    else if (attendanceStatus[studentId] === 'late') late++;
-                    else if (attendanceStatus[studentId] === 'excused') excused++;
-                }
+                // Only count attendance for students in this classroom
+                classroomStudents.forEach(student => {
+                    const status = attendanceStatus[student.id];
+                    if (status === 'present') present++;
+                    else if (status === 'absent') absent++;
+                    else if (status === 'late') late++;
+                    else if (status === 'excused') excused++;
+                    else unmarked++;
+                });
                 
                 unmarked = total - (present + absent + late + excused);
                 

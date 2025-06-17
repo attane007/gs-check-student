@@ -43,10 +43,130 @@
 
         .blur-backdrop {
             backdrop-filter: blur(10px);
+        }        .simple-hover:hover {
+            opacity: 0.9;
+        }        /* Status Button Styles */
+        .status-btn {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
         }
 
-        .simple-hover:hover {
-            opacity: 0.9;
+        .status-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .status-btn:hover::before {
+            left: 100%;
+        }
+
+        .status-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-btn:active {
+            transform: translateY(0);
+            transition: transform 0.1s;
+        }
+
+        /* Present Button */
+        .status-btn.present {
+            background: linear-gradient(135deg, rgba(186, 255, 201, 0.6), rgba(230, 255, 230, 0.6));
+            color: #065f46;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .status-btn.present.active {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+            border-color: #059669;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            transform: scale(1.1);
+        }
+        .status-btn.present:hover:not(.active) {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(52, 211, 153, 0.8));
+            color: white;
+        }
+
+        /* Absent Button */
+        .status-btn.absent {
+            background: linear-gradient(135deg, rgba(255, 179, 186, 0.6), rgba(255, 230, 230, 0.6));
+            color: #7f1d1d;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .status-btn.absent.active {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            color: white;
+            border-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            transform: scale(1.1);
+        }
+        .status-btn.absent:hover:not(.active) {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(248, 113, 113, 0.8));
+            color: white;
+        }
+
+        /* Late Button */
+        .status-btn.late {
+            background: linear-gradient(135deg, rgba(255, 255, 186, 0.6), rgba(255, 223, 186, 0.6));
+            color: #92400e;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        .status-btn.late.active {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: white;
+            border-color: #d97706;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+            transform: scale(1.1);
+        }
+        .status-btn.late:hover:not(.active) {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.8), rgba(251, 191, 36, 0.8));
+            color: white;
+        }
+
+        /* Excused Button */
+        .status-btn.excused {
+            background: linear-gradient(135deg, rgba(186, 225, 255, 0.6), rgba(230, 243, 255, 0.6));
+            color: #1e3a8a;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        .status-btn.excused.active {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            color: white;
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transform: scale(1.1);
+        }
+        .status-btn.excused:hover:not(.active) {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(96, 165, 250, 0.8));
+            color: white;
+        }
+
+        /* Pulse animation for active buttons */
+        .status-btn.active {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            }
+            50% {
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+            }
+            100% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            }
         }
 
         .hidden {
@@ -193,29 +313,23 @@
                                 <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <i class="fas fa-search"></i>
                                 </span>
-                            </div>
-
-                            <!-- Legend for attendance status -->
-                            <div class="flex flex-wrap justify-center gap-3 mb-4 text-xs">
-                                <div class="flex items-center">
-                                    <span
-                                        class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-green to-pastel-mint mr-1"></span>
-                                    <span>เข้าแถว</span>
+                            </div>                            <!-- Legend for attendance status -->
+                            <div class="flex flex-wrap justify-center gap-4 mb-6 text-sm">
+                                <div class="flex items-center bg-white/50 px-3 py-2 rounded-lg">
+                                    <span class="inline-block w-4 h-4 rounded-full bg-gradient-to-r from-green-400 to-green-500 mr-2 shadow-sm"></span>
+                                    <span class="font-medium text-green-700">เข้าแถว</span>
                                 </div>
-                                <div class="flex items-center">
-                                    <span
-                                        class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-coral to-pastel-pink mr-1"></span>
-                                    <span>ไม่เข้าแถว</span>
+                                <div class="flex items-center bg-white/50 px-3 py-2 rounded-lg">
+                                    <span class="inline-block w-4 h-4 rounded-full bg-gradient-to-r from-red-400 to-red-500 mr-2 shadow-sm"></span>
+                                    <span class="font-medium text-red-700">ไม่เข้าแถว</span>
                                 </div>
-                                <div class="flex items-center">
-                                    <span
-                                        class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-yellow to-pastel-peach mr-1"></span>
-                                    <span>มาสาย</span>
+                                <div class="flex items-center bg-white/50 px-3 py-2 rounded-lg">
+                                    <span class="inline-block w-4 h-4 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-500 mr-2 shadow-sm"></span>
+                                    <span class="font-medium text-yellow-700">มาสาย</span>
                                 </div>
-                                <div class="flex items-center">
-                                    <span
-                                        class="inline-block w-3 h-3 rounded-full bg-gradient-to-r from-pastel-blue to-pastel-sky mr-1"></span>
-                                    <span>ลา</span>
+                                <div class="flex items-center bg-white/50 px-3 py-2 rounded-lg">
+                                    <span class="inline-block w-4 h-4 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 mr-2 shadow-sm"></span>
+                                    <span class="font-medium text-blue-700">ลา</span>
                                 </div>
                             </div>
                             <div id="studentsList" class="space-y-2">
@@ -678,28 +792,34 @@
                         }, 300);
                     }
                 }
-            }
-
-            function loadInitialData() {
+            }            function loadInitialData() {
                 setLoading(true, 'Loading initial data...');
                 let classroomLoaded = false;
                 let statsLoaded = false;
+                let headersFixed = false;
 
                 function checkAllLoaded() {
-                    if (classroomLoaded && statsLoaded) {
+                    if (classroomLoaded && statsLoaded && headersFixed) {
                         setLoading(false);
-                    }
-                }                // Fetch students and extract classrooms from there
+                    }                }
+                
+                // Fix attendance headers first
+                fixAttendanceHeaders()
+                    .then(() => {
+                        console.log('Attendance headers verified/updated');
+                        headersFixed = true;
+                        checkAllLoaded();
+                    })
+                    .catch((error) => {
+                        console.warn('Header fix failed, continuing anyway:', error);
+                        headersFixed = true;
+                        checkAllLoaded();
+                    });// Fetch classrooms data from Classrooms sheet
                 google.script.run
                     .withSuccessHandler(function (response) {
                         classroomLoaded = true;
-                        if (response.success && response.students) {
-                            // Extract unique classrooms from students
-                            const uniqueClassrooms = [...new Set(response.students.map(student => student.classroom))];
-                            const classrooms = uniqueClassrooms.map(classroom => {
-                                return { id: classroom, name: classroom };
-                            });
-                            populateClassroomDropdown(classrooms);
+                        if (response.success && response.classrooms) {
+                            populateClassroomDropdown(response.classrooms);
                         } else if (!response.success) {
                             handleAuthError(response.error || 'Failed to load classrooms.', response.expired);
                         }
@@ -709,7 +829,7 @@
                         handleAuthError('Error loading classrooms: ' + error.message);
                         checkAllLoaded();
                     })
-                    .getStudents(currentToken);
+                    .getClassrooms(currentToken);
 
                 // Fetch daily attendance stats
                 console.log('About to call getDailyAttendanceStats with token:', currentToken ? 'Token exists' : 'No token!');
@@ -755,11 +875,12 @@
                     checkAllLoaded();
                 })
                     .getDailyAttendanceStats(7, currentToken); // Pass days=7 as first parameter
-            }
-
-            function populateClassroomDropdown(classrooms) {
+            }            function populateClassroomDropdown(classrooms) {
                 const classroomSelect = document.getElementById('classroomSelect');
                 if (!classroomSelect) return;
+                
+                // Store classrooms data for later use
+                classroomsData = classrooms;
                 
                 // Clear existing options except the first one (placeholder)
                 while (classroomSelect.options.length > 1) {
@@ -779,11 +900,136 @@
                     option.value = classroom.id;
                     option.textContent = classroom.name;
                     classroomSelect.appendChild(option);
-                });
-            }
+                });            }
 
-            let currentStudents = [];
+            function loadClassroomStudents() {
+                const classroomSelect = document.getElementById('classroomSelect');
+                const dateInput = document.getElementById('attendanceDate');
+                
+                if (!classroomSelect || !dateInput) return;
+                
+                const selectedClassroom = classroomSelect.value;
+                const selectedDate = dateInput.value;
+                
+                if (!selectedClassroom || selectedClassroom === '') {
+                    hideStudentsList();
+                    return;
+                }
+                
+                if (!selectedDate) {
+                    showError('Please select a date');
+                    hideStudentsList();
+                    return;
+                }
+                
+                setLoading(true, `Loading students for classroom ${selectedClassroom}...`);
+                
+                // Get all students and filter by classroom, then get attendance for the date
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        if (response.success && response.students) {
+                            // Filter students by classroom
+                            const classroomStudents = response.students.filter(student => 
+                                student.classroom === selectedClassroom
+                            );
+                            
+                            if (classroomStudents.length === 0) {
+                                setLoading(false);
+                                showError('No students found in this classroom');
+                                hideStudentsList();
+                                return;
+                            }
+                            
+                            // Now get attendance data for this date and classroom
+                            google.script.run
+                                .withSuccessHandler(function(attendanceResponse) {
+                                    setLoading(false);
+                                    
+                                    if (attendanceResponse.success) {
+                                        // Show date display
+                                        updateDateDisplay();
+                                        
+                                        // Render students with existing attendance data
+                                        renderStudents(classroomStudents, attendanceResponse.attendance || []);
+                                        
+                                        // Show students list
+                                        const studentsListContainer = document.getElementById('studentsListContainer');
+                                        if (studentsListContainer) {
+                                            studentsListContainer.classList.remove('hidden');
+                                        }
+                                        
+                                        // Update classroom info
+                                        updateClassroomInfo();
+                                    } else {
+                                        if (attendanceResponse.expired) {
+                                            handleAuthError(attendanceResponse.error || 'Your session has expired', true);
+                                        } else {
+                                            // Still show students even if attendance data fails
+                                            updateDateDisplay();
+                                            renderStudents(classroomStudents, []);
+                                            const studentsListContainer = document.getElementById('studentsListContainer');
+                                            if (studentsListContainer) {
+                                                studentsListContainer.classList.remove('hidden');
+                                            }
+                                            updateClassroomInfo();
+                                        }
+                                    }
+                                })
+                                .withFailureHandler(function(error) {
+                                    setLoading(false);
+                                    // Show students even if attendance data fails
+                                    updateDateDisplay();
+                                    renderStudents(classroomStudents, []);
+                                    const studentsListContainer = document.getElementById('studentsListContainer');
+                                    if (studentsListContainer) {
+                                        studentsListContainer.classList.remove('hidden');
+                                    }
+                                    updateClassroomInfo();
+                                })
+                                .getAttendanceByDate(selectedDate, currentToken);
+                        } else {
+                            setLoading(false);
+                            if (response.expired) {
+                                handleAuthError(response.error || 'Your session has expired', true);
+                            } else {
+                                showError(response.error || 'Failed to load students');
+                                hideStudentsList();
+                            }
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        setLoading(false);
+                        showError('Error loading students: ' + error.message);
+                        hideStudentsList();
+                    })
+                    .getStudents(currentToken);
+            }
+              function updateClassroomInfo() {
+                const classroomSelect = document.getElementById('classroomSelect');
+                const selectedClassroom = classroomSelect ? classroomSelect.value : '';
+                
+                if (!selectedClassroom || !currentStudents) return;
+                
+                // Find classroom name from stored data
+                const classroomInfo = classroomsData.find(c => c.id === selectedClassroom);
+                const classroomName = classroomInfo ? classroomInfo.name : selectedClassroom;
+                
+                // Count attendance stats
+                let total = currentStudents.length;
+                let present = 0;
+                let absent = 0;
+                let late = 0;
+                
+                for (const studentId in attendanceStatus) {
+                    if (attendanceStatus[studentId] === 'present') present++;
+                    else if (attendanceStatus[studentId] === 'absent') absent++;
+                    else if (attendanceStatus[studentId] === 'late') late++;
+                }
+                
+                console.log(`Classroom ${classroomName} (${selectedClassroom}): Total=${total}, Present=${present}, Absent=${absent}, Late=${late}`);
+            }let currentStudents = [];
             let attendanceStatus = {};
+            let classroomsData = []; // Store classroom data for name lookup
             
             function renderStudents(students, existingAttendance) {
                 const studentsList = document.getElementById('studentsList');
@@ -835,23 +1081,26 @@
                             <div>
                                 <h4 class="text-lg font-medium text-gray-800">${student.firstName} ${student.lastName}</h4>
                                 <p class="text-sm text-gray-600">${student.id}</p>
-                            </div>
-                            <div class="flex space-x-2">
+                            </div>                            <div class="flex space-x-2">
                                 <button onclick="markStudent('${student.id}', 'present')" 
-                                    class="status-btn present ${status === 'present' ? 'active' : ''} w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pastel-green/50 to-pastel-mint/50 hover:from-pastel-green hover:to-pastel-mint text-gray-700">
-                                    <i class="fas fa-check"></i>
+                                    class="status-btn present ${status === 'present' ? 'active' : ''} w-12 h-12 rounded-full flex flex-col items-center justify-center transition-all duration-300"
+                                    title="เข้าแถว">
+                                    <i class="fas fa-check text-lg"></i>
                                 </button>
                                 <button onclick="markStudent('${student.id}', 'absent')" 
-                                    class="status-btn absent ${status === 'absent' ? 'active' : ''} w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pastel-coral/50 to-pastel-pink/50 hover:from-pastel-coral hover:to-pastel-pink text-gray-700">
-                                    <i class="fas fa-times"></i>
+                                    class="status-btn absent ${status === 'absent' ? 'active' : ''} w-12 h-12 rounded-full flex flex-col items-center justify-center transition-all duration-300"
+                                    title="ไม่เข้าแถว">
+                                    <i class="fas fa-times text-lg"></i>
                                 </button>
                                 <button onclick="markStudent('${student.id}', 'late')" 
-                                    class="status-btn late ${status === 'late' ? 'active' : ''} w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pastel-yellow/50 to-pastel-peach/50 hover:from-pastel-yellow hover:to-pastel-peach text-gray-700">
-                                    <i class="fas fa-clock"></i>
+                                    class="status-btn late ${status === 'late' ? 'active' : ''} w-12 h-12 rounded-full flex flex-col items-center justify-center transition-all duration-300"
+                                    title="มาสาย">
+                                    <i class="fas fa-clock text-lg"></i>
                                 </button>
                                 <button onclick="markStudent('${student.id}', 'excused')" 
-                                    class="status-btn excused ${status === 'excused' ? 'active' : ''} w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pastel-blue/50 to-pastel-sky/50 hover:from-pastel-blue hover:to-pastel-sky text-gray-700">
-                                    <i class="fas fa-calendar-check"></i>
+                                    class="status-btn excused ${status === 'excused' ? 'active' : ''} w-12 h-12 rounded-full flex flex-col items-center justify-center transition-all duration-300"
+                                    title="ลา">
+                                    <i class="fas fa-calendar-check text-lg"></i>
                                 </button>
                             </div>
                         </div>
@@ -962,23 +1211,48 @@
                     alert('กรุณาเลือกสถานะการเข้าเรียนอย่างน้อย 1 คน');
                     return;
                 }
+                  setLoading(true, 'กำลังตรวจสอบระบบ...');
                 
-                setLoading(true, 'กำลังบันทึกการเข้าเรียน...');
-                
-                google.script.run
-                    .withSuccessHandler(function(response) {
-                        setLoading(false);
-                        if (response.success) {
-                            showSuccessResult(response);
-                        } else {
-                            handleAuthError(response.message, response.expired);
-                        }
+                // First, try to fix attendance headers if needed
+                fixAttendanceHeaders()
+                    .then(() => {
+                        setLoading(true, 'กำลังบันทึกการเข้าเรียน...');
+                        
+                        google.script.run
+                            .withSuccessHandler(function(response) {
+                                setLoading(false);
+                                if (response.success) {
+                                    showSuccessResult(response);
+                                } else {
+                                    handleAuthError(response.message, response.expired);
+                                }
+                            })
+                            .withFailureHandler(function(error) {
+                                setLoading(false);
+                                showErrorModal('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
+                            })
+                            .recordBulkAttendanceWithDate(attendanceStatus, selectedDate, currentToken);
                     })
-                    .withFailureHandler(function(error) {
-                        setLoading(false);
-                        showErrorModal('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
-                    })
-                    .recordBulkAttendanceWithDate(attendanceStatus, selectedDate, currentToken);
+                    .catch((error) => {
+                        // If header fix fails, try to proceed anyway
+                        console.warn('Header fix failed, proceeding with attendance submission:', error);
+                        setLoading(true, 'กำลังบันทึกการเข้าเรียน...');
+                        
+                        google.script.run
+                            .withSuccessHandler(function(response) {
+                                setLoading(false);
+                                if (response.success) {
+                                    showSuccessResult(response);
+                                } else {
+                                    handleAuthError(response.message, response.expired);
+                                }
+                            })
+                            .withFailureHandler(function(error) {
+                                setLoading(false);
+                                showErrorModal('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
+                            })
+                            .recordBulkAttendanceWithDate(attendanceStatus, selectedDate, currentToken);
+                    });
             }
             
             function showSuccessResult(response) {
@@ -987,21 +1261,118 @@
                 
                 if (resultDisplay) {
                     resultDisplay.innerHTML = `
-                        <div class="text-center">
-                            <div class="w-20 h-20 bg-gradient-to-r from-pastel-green to-emerald-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div class="text-center">                            <div class="w-20 h-20 bg-gradient-to-r from-pastel-green to-emerald-300 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <i class="fas fa-check text-white text-3xl"></i>
                             </div>
                             <h3 class="text-2xl font-bold text-gray-800 mb-2">บันทึกสำเร็จ!</h3>
                             <p class="text-gray-700 mb-6">${response.message}</p>
-                            <button onclick="resetForm()" class="bg-gradient-to-r from-pastel-blue to-pastel-sky text-gray-800 font-semibold py-3 px-6 rounded-xl hover:opacity-90 simple-hover">
-                                <i class="fas fa-plus mr-2"></i>
-                                เช็คชื่อห้องอื่น
-                            </button>
                         </div>
                     `;
                     resultDisplay.classList.remove('hidden');
                     studentsListContainer.classList.add('hidden');
                 }
+            }
+
+            // Error handling functions
+            function showError(message) {
+                console.error('Error:', message);
+                // Show error in a simple alert for now, can be enhanced with modal later
+                alert('เกิดข้อผิดพลาด: ' + message);
+            }
+            
+            function showErrorModal(message, isAuthError = false) {
+                console.error('Error Modal:', message);
+                
+                // Create modal if it doesn't exist
+                let modal = document.getElementById('errorModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'errorModal';
+                    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden';
+                    modal.innerHTML = `
+                        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4">
+                            <div class="flex items-center mb-4">
+                                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                                </div>
+                                <h3 class="text-lg font-semibold text-gray-800">เกิดข้อผิดพลาด</h3>
+                            </div>
+                            <p id="errorModalMessage" class="text-gray-600 mb-6"></p>
+                            <div class="flex justify-end space-x-3">
+                                <button id="errorModalClose" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors">
+                                    ปิด
+                                </button>
+                                <button id="errorModalLogout" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors hidden">
+                                    ออกจากระบบ
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    
+                    // Add event listeners
+                    modal.querySelector('#errorModalClose').addEventListener('click', () => {
+                        hideErrorModal();
+                    });
+                    
+                    modal.querySelector('#errorModalLogout').addEventListener('click', () => {
+                        hideErrorModal();
+                        logout();
+                    });
+                }
+                
+                // Update modal content
+                const messageElement = modal.querySelector('#errorModalMessage');
+                const logoutButton = modal.querySelector('#errorModalLogout');
+                
+                if (messageElement) {
+                    messageElement.textContent = message;
+                }
+                
+                if (logoutButton) {
+                    if (isAuthError) {
+                        logoutButton.classList.remove('hidden');
+                    } else {
+                        logoutButton.classList.add('hidden');
+                    }
+                }
+                
+                // Show modal
+                modal.classList.remove('hidden');
+            }
+            
+            function hideErrorModal() {
+                const modal = document.getElementById('errorModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            }
+            
+            function logout() {
+                localStorage.removeItem('jwtToken');
+                localStorage.removeItem('userInfo');
+                redirectToLogin('You have been logged out.');
+            }
+
+            // Function to fix attendance sheet headers if needed
+            function fixAttendanceHeaders() {
+                return new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(function(response) {
+                            if (response.success) {
+                                console.log('Attendance headers check/update:', response.message);
+                                resolve(response);
+                            } else {
+                                console.error('Failed to update attendance headers:', response.error);
+                                reject(new Error(response.error));
+                            }
+                        })
+                        .withFailureHandler(function(error) {
+                            console.error('Error checking attendance headers:', error.message);
+                            reject(error);
+                        })
+                        .updateAttendanceSheetHeaders();
+                });
             }
         </script>
 </body>

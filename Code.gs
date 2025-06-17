@@ -201,16 +201,21 @@ function initializeSheets() {
     let attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
     if (!attendanceSheet) {
       attendanceSheet = spreadsheet.insertSheet(ATTENDANCE_SHEET_NAME);
-    }
-    const attendanceLastRow = attendanceSheet.getLastRow();
+    }    const attendanceLastRow = attendanceSheet.getLastRow();
     if (attendanceLastRow === 0 || attendanceSheet.getRange(1, 1).getValue() === '') {
-      attendanceSheet.getRange(1, 1, 1, 6).setValues([
-        ['วันที่', 'เวลา', 'รหัสนักเรียน', 'ชื่อ-นามสกุล', 'ห้องเรียน', 'สถานะ']
+      attendanceSheet.getRange(1, 1, 1, 8).setValues([
+        ['Date', 'Time', 'StudentID', 'FirstName', 'LastName', 'Classroom', 'Status', 'RecordedBy']
       ]);
-      const headerRange = attendanceSheet.getRange(1, 1, 1, 6);
+      const headerRange = attendanceSheet.getRange(1, 1, 1, 8);
       headerRange.setFontWeight('bold');
       headerRange.setBackground('#BAFFC9');
       headerRange.setHorizontalAlignment('center');
+    } else {
+      // Update existing headers if they're in Thai format
+      const updateResult = updateAttendanceSheetHeaders();
+      if (updateResult.success && updateResult.headersUpdated) {
+        Logger.log('initializeSheets: Attendance sheet headers updated from Thai to English');
+      }
     }
     
     Logger.log('initializeSheets: About to call initializeUsersSheet');
@@ -662,11 +667,9 @@ function recordAttendance(studentId, status, authToken) { // Expects JWT
                 totalPresentToday++;
             }
         }
-    });
-
-    return { 
+    });    return { 
       success: true, 
-      message: `Attendance ${recordUpdated ? 'updated' : 'recorded'} for ${studentInfo.name} (${status}) by ${userMakingRequest.username}`,
+      message: 'Attendance ' + (recordUpdated ? 'updated' : 'recorded') + ' for ' + studentInfo.name + ' (' + status + ') by ' + userMakingRequest.username,
       action: recordUpdated ? 'updated' : 'created',
       studentId: studentInfo.id,
       status: status,
@@ -1141,10 +1144,9 @@ function getDailyAttendanceStats(days = 7, token) {
     // Get all attendance data
     const data = attendanceSheet.getDataRange().getValues();
     const headers = data[0];
-    
-    // Find column indices
-    const dateColIdx = headers.indexOf('วันที่');
-    const statusColIdx = headers.indexOf('สถานะ');
+      // Find column indices
+    const dateColIdx = headers.indexOf('Date');
+    const statusColIdx = headers.indexOf('Status');
     
     if (dateColIdx === -1 || statusColIdx === -1) {
       return { success: false, error: 'Required columns not found in attendance sheet' };
@@ -1229,5 +1231,200 @@ function getDailyAttendanceStats(days = 7, token) {
       success: false,
       error: 'Failed to get daily attendance stats: ' + error.toString()
     };
+  }
+}
+
+/**
+ * Gets attendance records for a specific date
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} token - JWT authentication token
+ * @return {object} Response containing attendance records
+ */
+function getAttendanceByDate(date, token) {
+  try {
+    // Verify JWT token
+    const verification = verifyJwt(token);
+    if (!verification.valid) {
+      return { 
+        success: false, 
+        error: verification.error || 'Authentication failed', 
+        expired: verification.expired || false 
+      };
+    }
+    
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
+    
+    if (!attendanceSheet) {
+      return { success: false, error: 'Attendance sheet not found' };
+    }
+    
+    // Get all attendance data
+    const data = attendanceSheet.getDataRange().getValues();
+    const headers = data[0];
+      // Find column indices
+    const dateColIdx = headers.indexOf('Date');
+    const studentIdColIdx = headers.indexOf('StudentID');
+    const statusColIdx = headers.indexOf('Status');
+    
+    if (dateColIdx === -1 || studentIdColIdx === -1 || statusColIdx === -1) {
+      return { success: false, error: 'Required columns not found in attendance sheet' };
+    }
+    
+    // Filter attendance records for the specified date
+    const attendance = [];
+    data.slice(1).forEach(row => {
+      if (row.length <= Math.max(dateColIdx, studentIdColIdx, statusColIdx)) return;
+      
+      let recordDate = row[dateColIdx];
+      if (typeof recordDate === 'string') {
+        try {
+          recordDate = new Date(recordDate);
+        } catch(e) {
+          return; // Skip invalid dates
+        }
+      }
+      
+      if (!(recordDate instanceof Date) || isNaN(recordDate.getTime())) return;
+      
+      const recordDateStr = Utilities.formatDate(recordDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      
+      if (recordDateStr === date) {
+        attendance.push({
+          studentId: row[studentIdColIdx],
+          status: row[statusColIdx],
+          date: recordDateStr
+        });
+      }
+    });
+    
+    return {
+      success: true,
+      attendance: attendance,
+      date: date
+    };
+  } catch (error) {
+    Logger.log('ERROR in getAttendanceByDate: ' + error.toString());
+    return {
+      success: false,
+      error: 'Failed to get attendance data: ' + error.toString()
+    };
+  }
+}
+
+/**
+ * Gets all classroom data (ID and Name)
+ * @param {string} authToken - JWT authentication token
+ * @return {object} Response containing classroom data
+ */
+function getClassrooms(authToken) {
+  const verificationResult = verifyJwt(authToken);
+  if (!verificationResult.valid) {
+    return { 
+      success: false, 
+      error: 'Authentication failed: ' + verificationResult.error, 
+      expired: verificationResult.expired || false,
+      classrooms: [] 
+    };
+  }
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const classroomSheet = spreadsheet.getSheetByName(CLASSROOMS_SHEET_NAME);
+    
+    if (!classroomSheet) {
+      return { success: false, error: 'Classrooms sheet not found', classrooms: [] };
+    }
+    
+    const data = classroomSheet.getDataRange().getValues();
+    data.shift(); // Remove header row
+    
+    const classrooms = data.map(row => ({
+      id: row[0],      // ห้องเรียนID
+      name: row[1]     // ชื่อห้องเรียน
+    }));
+    
+    return { success: true, classrooms: classrooms };
+  } catch (error) {
+    Logger.log('ERROR in getClassrooms: ' + error.toString());
+    return {
+      success: false,
+      error: 'Failed to get classrooms: ' + error.toString(),
+      classrooms: []
+    };
+  }
+}
+
+/**
+ * Updates attendance sheet headers from Thai to English if needed
+ */
+function updateAttendanceSheetHeaders() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const attendanceSheet = spreadsheet.getSheetByName(ATTENDANCE_SHEET_NAME);
+    
+    if (!attendanceSheet) {
+      Logger.log('updateAttendanceSheetHeaders: Attendance sheet not found');
+      return { success: false, error: 'Attendance sheet not found' };
+    }
+    
+    // Get current headers
+    const currentHeaders = attendanceSheet.getRange(1, 1, 1, attendanceSheet.getLastColumn()).getValues()[0];
+    
+    // Check if headers need updating (if they're in Thai)
+    const needsUpdate = currentHeaders.includes('วันที่') || 
+                       currentHeaders.includes('รหัสนักเรียน') || 
+                       currentHeaders.includes('สถานะ');
+    
+    if (needsUpdate) {
+      Logger.log('updateAttendanceSheetHeaders: Updating headers from Thai to English');
+      
+      // Create mapping for header translation
+      const headerMapping = {
+        'วันที่': 'Date',
+        'เวลา': 'Time', 
+        'รหัสนักเรียน': 'StudentID',
+        'ชื่อ-นามสกุล': 'FirstName',
+        'ชื่อ': 'FirstName',
+        'นามสกุล': 'LastName',
+        'ห้องเรียน': 'Classroom',
+        'ห้องเรียนID': 'Classroom',
+        'สถานะ': 'Status'
+      };
+      
+      // Update headers
+      const newHeaders = currentHeaders.map(header => {
+        const headerStr = header ? header.toString().trim() : '';
+        return headerMapping[headerStr] || headerStr;
+      });
+      
+      // Add missing required headers if they don't exist
+      const requiredHeaders = ['Date', 'Time', 'StudentID', 'FirstName', 'LastName', 'Classroom', 'Status', 'RecordedBy'];
+      
+      requiredHeaders.forEach(requiredHeader => {
+        if (!newHeaders.includes(requiredHeader)) {
+          newHeaders.push(requiredHeader);
+        }
+      });
+      
+      // Update the sheet headers
+      attendanceSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+      
+      // Format headers
+      const headerRange = attendanceSheet.getRange(1, 1, 1, newHeaders.length);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#BAFFC9');
+      headerRange.setHorizontalAlignment('center');
+      
+      Logger.log('updateAttendanceSheetHeaders: Headers updated successfully');
+      return { success: true, message: 'Headers updated successfully', headersUpdated: true };
+    } else {
+      Logger.log('updateAttendanceSheetHeaders: Headers are already in English format');
+      return { success: true, message: 'Headers are already correct', headersUpdated: false };
+    }
+    
+  } catch (error) {
+    Logger.log('ERROR in updateAttendanceSheetHeaders: ' + error.toString());
+    return { success: false, error: 'Failed to update headers: ' + error.toString() };
   }
 }

@@ -909,15 +909,27 @@ function recordBulkAttendanceWithDate(studentStatusMap, attendanceDate, authToke
     const studentMap = {};
     let classroomOfCurrentStudents = null;
     
+    // First, identify which classroom these students belong to
+    for (let studentId in studentStatusMap) {
+      // Find this student in the student sheet to get their classroom
+      for (let i = 0; i < studentsData.length; i++) {
+        if (studentsData[i][studentIdColIdx_students] && 
+            studentsData[i][studentIdColIdx_students].toString() === studentId.toString()) {
+          classroomOfCurrentStudents = studentClassroomColIdx !== -1 ? 
+            studentsData[i][studentClassroomColIdx] : '';
+          break;
+        }
+      }
+      if (classroomOfCurrentStudents) break; // Stop once we've found the classroom
+    }
+    
+    Logger.log(`Identified classroom for this batch: ${classroomOfCurrentStudents}`);
+    
+    // Continue building the student map
     studentsData.forEach(row => {
       if (row[studentIdColIdx_students]) {
         const studentId = row[studentIdColIdx_students].toString();
         const classroom = studentClassroomColIdx !== -1 ? row[studentClassroomColIdx] : '';
-        
-        // Determine classroom from the students in studentStatusMap
-        if (studentStatusMap.hasOwnProperty(studentId) && classroomOfCurrentStudents === null) {
-          classroomOfCurrentStudents = classroom;
-        }
         
         studentMap[studentId] = {
           firstName: row[studentFirstNameColIdx],
@@ -927,29 +939,54 @@ function recordBulkAttendanceWithDate(studentStatusMap, attendanceDate, authToke
       }
     });
     
-    // First remove existing records for this date, classroom and students
+    // Delete ALL existing attendance records for this classroom and date
     const currentDate = Utilities.formatDate(attendanceDateObj, Session.getScriptTimeZone(), 'yyyy-MM-dd');
     const existingData = attendanceSheet.getDataRange().getValues();
     existingData.shift(); // Remove header
     const rowsToDelete = [];
     
+    if (!classroomOfCurrentStudents) {
+      Logger.log("WARNING: Could not determine classroom for this batch of students. Cannot safely delete existing records.");
+      return {
+        success: false,
+        message: 'Unable to determine the classroom for these students. Cannot update attendance.'
+      };
+    }
+    
+    // Find ALL records for this classroom on this date, not just for the students in studentStatusMap
     existingData.forEach((row, index) => {
-      if (row[dateColIdx] && Utilities.formatDate(new Date(row[dateColIdx]), Session.getScriptTimeZone(), 'yyyy-MM-dd') === currentDate) {
+      // Check if this record is for the same date
+      if (row[dateColIdx] && 
+          Utilities.formatDate(new Date(row[dateColIdx]), Session.getScriptTimeZone(), 'yyyy-MM-dd') === currentDate) {
+        
+        // Check if this record is for a student in the same classroom
         const studentId = row[studentIdColIdx];
-        if (studentId && studentStatusMap.hasOwnProperty(studentId.toString())) {
-          // Only delete if the student is in the same classroom as the current batch
-          const studentInfo = studentMap[studentId.toString()];
-          if (studentInfo && studentInfo.classroom === classroomOfCurrentStudents) {
+        if (studentId && studentId.toString()) {
+          // If we have classroom column in attendance, use that directly
+          if (classroomColIdx !== -1 && row[classroomColIdx] === classroomOfCurrentStudents) {
             rowsToDelete.push(index + 2); // +2 because sheet rows are 1-indexed and we removed header
+          } 
+          // Otherwise, check if this student is in the target classroom according to student map
+          else {
+            const studentInfo = studentMap[studentId.toString()];
+            if (studentInfo && studentInfo.classroom === classroomOfCurrentStudents) {
+              rowsToDelete.push(index + 2);
+            }
           }
         }
       }
     });
 
+    Logger.log(`Found ${rowsToDelete.length} existing attendance records to delete for classroom ${classroomOfCurrentStudents} on ${currentDate}`);
+
     // Delete rows in reverse order to maintain correct indices
-    rowsToDelete.reverse().forEach(rowIndex => {
-      attendanceSheet.deleteRow(rowIndex);
-    });
+    if (rowsToDelete.length > 0) {
+      rowsToDelete.sort((a, b) => b - a); // Sort in descending order
+      rowsToDelete.forEach(rowIndex => {
+        attendanceSheet.deleteRow(rowIndex);
+      });
+      Logger.log(`Deleted ${rowsToDelete.length} existing attendance records for classroom ${classroomOfCurrentStudents}`);
+    }
 
     const currentTimestamp = new Date();
     const timeString = Utilities.formatDate(currentTimestamp, Session.getScriptTimeZone(), 'HH:mm:ss');

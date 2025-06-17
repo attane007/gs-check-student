@@ -516,13 +516,11 @@ function getStudents(authToken) { // Expects JWT to be passed by client
     return { success: true, students: students };
   } catch (error) {
     Logger.log('ERROR in getStudents: ' + error.toString());
-    return {
-      success: false,
+    return {      success: false,
       error: 'Failed to get students data: ' + error.toString(),
       students: []
     };
   }
-}
 }
 
 function recordAttendance(studentId, status, authToken) { // Expects JWT

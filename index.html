@@ -431,8 +431,27 @@
                 setupLogoutButton();
                 setupNavigation();
                 loadInitialData(); // For student lists, classrooms etc.
-                updateDateTime();
-                setInterval(updateDateTime, 1000);
+                updateDateTime();                setInterval(updateDateTime, 1000);
+            }
+
+            // Time and date display function
+            function updateDateTime() {
+                const now = new Date();
+                const options = {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                };
+                const dateTimeString = now.toLocaleString('th-TH', options);
+                const dateTimeElement = document.getElementById('currentDateTime');
+                if (dateTimeElement) {
+                    dateTimeElement.textContent = dateTimeString;
+                }
             }
 
             // Date handling functions

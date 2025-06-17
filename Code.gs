@@ -1339,10 +1339,13 @@ function getAttendanceByDate(date, token) {
       if (!(recordDate instanceof Date) || isNaN(recordDate.getTime())) return;
       
       const recordDateStr = Utilities.formatDate(recordDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      
-      if (recordDateStr === date) {
+        if (recordDateStr === date) {
+        // Ensure studentId is a string
+        const studentId = row[studentIdColIdx].toString();
+        Logger.log(`Adding attendance record: studentId=${studentId}, status=${row[statusColIdx]}`);
+        
         attendance.push({
-          studentId: row[studentIdColIdx],
+          studentId: studentId,
           status: row[statusColIdx],
           date: recordDateStr
         });

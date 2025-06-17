@@ -958,24 +958,50 @@
                                 hideStudentsList();
                                 return;
                             }
+                              // Now get attendance data for this date and classroom
+                            console.log(`Fetching attendance for date: ${selectedDate} with token: ${currentToken ? 'token exists' : 'no token'}`);
+                            console.log(`Selected classroom: ${selectedClassroom}, Total students: ${classroomStudents.length}`);
                             
-                            // Now get attendance data for this date and classroom
                             google.script.run
                                 .withSuccessHandler(function(attendanceResponse) {
                                     setLoading(false);
-                                    
+                                    console.log('Full attendance response:', attendanceResponse);
+                                          
                                     if (attendanceResponse.success) {
                                         // Show date display
                                         updateDateDisplay();
+                                                    const attendanceData = attendanceResponse.attendance || [];
+                                        console.log('Attendance data received:', attendanceData);
+                                        
+                                        // Check attendance data format
+                                        if (attendanceData.length > 0) {
+                                            console.log('Sample attendance record:', attendanceData[0]);
+                                            // Debug - log student id format comparison
+                                            if (classroomStudents.length > 0) {
+                                                console.log('Format comparison:');
+                                                console.log(`Type of first attendance studentId: ${typeof attendanceData[0].studentId}, value: ${attendanceData[0].studentId}`);
+                                                console.log(`Type of first student id: ${typeof classroomStudents[0].id}, value: ${classroomStudents[0].id}`);
+                                                console.log(`String comparison equal? ${String(attendanceData[0].studentId) === String(classroomStudents[0].id)}`);
+                                                
+                                                // Check if we can find matches
+                                                const attendanceIds = attendanceData.map(a => String(a.studentId));
+                                                const studentIds = classroomStudents.map(s => String(s.id));
+                                                console.log('Attendance IDs:', attendanceIds);
+                                                console.log('Student IDs:', studentIds);
+                                                console.log('Common IDs:', attendanceIds.filter(id => studentIds.includes(id)));
+                                            }
+                                        }
                                         
                                         // Render students with existing attendance data
-                                        renderStudents(classroomStudents, attendanceResponse.attendance || []);
-                                        
+                                        renderStudents(classroomStudents, attendanceData);
                                         // Show students list
                                         const studentsListContainer = document.getElementById('studentsListContainer');
                                         if (studentsListContainer) {
                                             studentsListContainer.classList.remove('hidden');
                                         }
+                                        
+                                        // Make sure stats are updated with the attendance data
+                                        updateClassroomInfo();
                                           // Render students will trigger updateClassroomInfo via updateStats()
                                     } else {
                                         if (attendanceResponse.expired) {
@@ -1031,8 +1057,7 @@
                 
                 // Filter students for selected classroom only
                 const classroomStudents = currentStudents.filter(student => student.classroom === selectedClassroom);
-                
-                // Count attendance stats
+                  // Count attendance stats
                 let total = classroomStudents.length;
                 let present = 0;
                 let absent = 0;
@@ -1040,17 +1065,35 @@
                 let excused = 0;
                 let unmarked = 0;
                 
-                // Only count attendance for students in this classroom
+                console.log('Updating classroom info:', {
+                    totalStudents: total,
+                    attendanceStatus: attendanceStatus
+                });
+                  // Only count attendance for students in this classroom
                 classroomStudents.forEach(student => {
-                    const status = attendanceStatus[student.id];
+                    // Make sure to convert studentId to string for comparison
+                    const studentIdStr = String(student.id);
+                    const status = attendanceStatus[studentIdStr];
+                    
+                    console.log(`Student ${studentIdStr} status:`, status);
+                    
                     if (status === 'present') present++;
                     else if (status === 'absent') absent++;
                     else if (status === 'late') late++;
                     else if (status === 'excused') excused++;
                     else unmarked++;
                 });
-                
+                  // Calculate unmarked correctly (don't rely on prior calculation)
                 unmarked = total - (present + absent + late + excused);
+                
+                console.log('Final attendance counts:', {
+                    present,
+                    absent,
+                    late,
+                    excused,
+                    unmarked,
+                    total
+                });
                 
                 // Update classroom info card
                 const classroomInfoElement = document.getElementById('classroomInfo');
@@ -1118,8 +1161,7 @@
             }let currentStudents = [];
             let attendanceStatus = {};
             let classroomsData = []; // Store classroom data for name lookup
-            
-            function renderStudents(students, existingAttendance) {
+              function renderStudents(students, existingAttendance) {
                 const studentsList = document.getElementById('studentsList');
                 if (!studentsList) return;
                 
@@ -1128,16 +1170,45 @@
                 
                 // Save current students data
                 currentStudents = students;
+                
+                // Clear previous attendance status
                 attendanceStatus = {};
                 
                 // Process existing attendance if available
-                if (existingAttendance && Array.isArray(existingAttendance)) {
+                console.log('Processing existing attendance:', existingAttendance);                if (existingAttendance && Array.isArray(existingAttendance)) {
+                    console.log('Processing attendance records, count:', existingAttendance.length);
+                    
+                    // First, log all student IDs to check format
+                    console.log('Current student IDs in this classroom:', students.map(s => s.id));
+                    
                     existingAttendance.forEach(record => {
-                        if (record.studentId) {
-                            attendanceStatus[record.studentId] = record.status;
+                        console.log('Processing attendance record:', record);
+                        // Ensure studentId is compared as a string
+                        if (record && record.studentId) {
+                            // Convert both to strings for comparison
+                            const studentIdStr = String(record.studentId);
+                            console.log(`Debug - studentId type: ${typeof record.studentId}, value: ${record.studentId}`);
+                            
+                            // Store with exact format received
+                            attendanceStatus[studentIdStr] = record.status;
+                            console.log(`Set status for student ${studentIdStr} to ${record.status}`);
+                            
+                            // Double check if this student exists in our list
+                            const matchingStudent = students.find(s => String(s.id) === studentIdStr);
+                            if (!matchingStudent) {
+                                console.warn(`Student ID ${studentIdStr} from attendance not found in student list`);
+                            }
+                        } else {
+                            console.warn('Invalid attendance record:', record);
                         }
                     });
+                    console.log('Final attendanceStatus object:', attendanceStatus);
+                } else {
+                    console.log('No attendance data available or not in expected format');
                 }
+                
+                // Update classroom info with the existing attendance data
+                updateClassroomInfo();
                 
                 if (students.length === 0) {
                     studentsList.innerHTML = `
@@ -1199,10 +1270,13 @@
                 
                 updateStats();
             }
-            
-            function markStudent(studentId, status) {
+              function markStudent(studentId, status) {
+                // Ensure studentId is stored as string
+                const studentIdStr = String(studentId);
+                console.log(`Marking student ${studentIdStr} as ${status}`);
+                
                 // Update attendance status
-                attendanceStatus[studentId] = status;
+                attendanceStatus[studentIdStr] = status;
                 
                 // Update display status
                 const buttons = document.querySelectorAll(`button[onclick*="markStudent('${studentId}')"]`);
@@ -1266,19 +1340,57 @@
                 
                 updateStats();
                 updateSubmitButton();
-            }
-              function updateStats() {
-                const presentCount = Object.values(attendanceStatus).filter(status => status === 'present').length;
-                const absentCount = Object.values(attendanceStatus).filter(status => status === 'absent').length;
-                const lateCount = Object.values(attendanceStatus).filter(status => status === 'late').length;
-                const excusedCount = Object.values(attendanceStatus).filter(status => status === 'excused').length;
-                const unmarkedCount = currentStudents.length - Object.keys(attendanceStatus).length;
-                const totalStudents = currentStudents.length;
+            }              function updateStats() {
+                console.log('Updating stats with attendanceStatus:', attendanceStatus);
+                console.log('Current students:', currentStudents.length);
+                
+                // Filter students for the selected classroom only
+                const classroomSelect = document.getElementById('classroomSelect');
+                const selectedClassroom = classroomSelect ? classroomSelect.value : '';
+                const classroomStudents = currentStudents.filter(student => student.classroom === selectedClassroom);
+                
+                console.log('Students in selected classroom:', classroomStudents.length);
+                  // Count attendance only for students in the selected classroom
+                let presentCount = 0;
+                let absentCount = 0;
+                let lateCount = 0;
+                let excusedCount = 0;
+                let unmarkedCount = 0;
+                
+                classroomStudents.forEach(student => {
+                    // Make sure to convert studentId to string for comparison
+                    const studentIdStr = String(student.id);
+                    const status = attendanceStatus[studentIdStr];
+                    
+                    console.log(`Checking student ${studentIdStr} (${student.firstName}): status = ${status}`);
+                    
+                    if (status === 'present') presentCount++;
+                    else if (status === 'absent') absentCount++;
+                    else if (status === 'late') lateCount++;
+                    else if (status === 'excused') excusedCount++;
+                    else unmarkedCount++;
+                });
+                
+                console.log('Stats counts:', {
+                    presentCount,
+                    absentCount,
+                    lateCount,
+                    excusedCount,
+                    unmarkedCount,
+                    totalStudents: classroomStudents.length
+                });
                 
                 // Update stats card using the helper function
-                updateStatsCard(totalStudents, presentCount, absentCount, lateCount, excusedCount, unmarkedCount);
+                updateStatsCard(
+                    classroomStudents.length, 
+                    presentCount, 
+                    absentCount, 
+                    lateCount, 
+                    excusedCount, 
+                    unmarkedCount
+                );
                 
-                // Also update classroom info
+                // Also update classroom info with the correct counts
                 updateClassroomInfo();
             }
             

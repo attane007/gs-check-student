@@ -484,17 +484,45 @@ function logoutUser(token) { // Token might be passed for logging or if a blockl
 
 // Example of how a protected function would change:
 function getStudents(authToken) { // Expects JWT to be passed by client
-  const verificationResult = verifyJwt(authToken);
-  if (!verificationResult.valid) {
-    return { success: false, error: 'Authentication failed: ' + verificationResult.error, students: [] };
+  try {
+    const verificationResult = verifyJwt(authToken);
+    if (!verificationResult.valid) {
+      return { success: false, error: 'Authentication failed: ' + verificationResult.error, students: [] };
+    }
+    
+    // Proceed if token is valid
+    Logger.log(`User ${verificationResult.payload.user.username} requesting students.`);
+    
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(STUDENTS_SHEET_NAME);
+    
+    if (!sheet) {
+      Logger.log('getStudents: Students sheet not found');
+      return { success: false, error: 'Students sheet not found', students: [] };
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    data.shift(); // Remove header row
+    
+    // Ensure all IDs are strings for consistency with getAttendanceByDate
+    const students = data.map(row => ({ 
+      id: row[0] ? row[0].toString() : '', 
+      firstName: row[1] || '', 
+      lastName: row[2] || '', 
+      classroom: row[3] || '' 
+    }));
+    
+    Logger.log(`getStudents: Returning ${students.length} students. Sample ID: ${students.length > 0 ? students[0].id : 'none'}`);
+    return { success: true, students: students };
+  } catch (error) {
+    Logger.log('ERROR in getStudents: ' + error.toString());
+    return {
+      success: false,
+      error: 'Failed to get students data: ' + error.toString(),
+      students: []
+    };
   }
-  // Proceed if token is valid
-  // Logger.log(`User ${verificationResult.payload.user.username} requesting students.`);
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STUDENTS_SHEET_NAME);
-  const data = sheet.getDataRange().getValues();
-  data.shift(); // Remove header row
-  const students = data.map(row => ({ id: row[0], firstName: row[1], lastName: row[2], classroom: row[3] }));
-  return { success: true, students: students };
+}
 }
 
 function recordAttendance(studentId, status, authToken) { // Expects JWT

@@ -970,8 +970,7 @@
                                     if (attendanceResponse.success) {
                                         // Show date display
                                         updateDateDisplay();
-                                                    const attendanceData = attendanceResponse.attendance || [];
-                                        console.log('Attendance data received:', attendanceData);
+                                                    const attendanceData = attendanceResponse.attendance || [];                                        console.log('Attendance data received:', attendanceData);
                                         
                                         // Check attendance data format
                                         if (attendanceData.length > 0) {
@@ -989,6 +988,18 @@
                                                 console.log('Attendance IDs:', attendanceIds);
                                                 console.log('Student IDs:', studentIds);
                                                 console.log('Common IDs:', attendanceIds.filter(id => studentIds.includes(id)));
+                                                
+                                                // Fix studentIds in attendanceData for consistency
+                                                // This ensures studentId format matches exactly what's in the students array
+                                                attendanceData.forEach(record => {
+                                                    const matchingStudent = classroomStudents.find(s => 
+                                                        String(s.id) === String(record.studentId));
+                                                    if (matchingStudent) {
+                                                        // Use the exact ID format from the students array
+                                                        record.studentId = matchingStudent.id;
+                                                        console.log(`Fixed studentId format: ${record.studentId}`);
+                                                    }
+                                                });
                                             }
                                         }
                                         

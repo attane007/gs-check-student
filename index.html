@@ -596,13 +596,10 @@
             function onDateChange() {
                 const dateInput = document.getElementById('attendanceDate');
                 const classroomSelect = document.getElementById('classroomSelect');
-                
-                if (dateInput && dateInput.value) {
+                  if (dateInput && dateInput.value) {
                     updateDateDisplay();
-                    // Reset classroom selection when date changes
                     if (classroomSelect && classroomSelect.value) {
-                        classroomSelect.value = '';
-                        hideStudentsList();
+                        loadClassroomStudents(); // Load students for the new date
                     }
                 } else {
                     hideDateDisplay();
@@ -916,7 +913,13 @@
                     option.value = classroom.id;
                     option.textContent = classroom.name;
                     classroomSelect.appendChild(option);
-                });            }
+                });
+
+                // Add change event listener
+                classroomSelect.addEventListener('change', function() {
+                    loadClassroomStudents();
+                });
+            }
 
             function loadClassroomStudents() {
                 const classroomSelect = document.getElementById('classroomSelect');
@@ -973,9 +976,7 @@
                                         if (studentsListContainer) {
                                             studentsListContainer.classList.remove('hidden');
                                         }
-                                        
-                                        // Update classroom info
-                                        updateClassroomInfo();
+                                          // Render students will trigger updateClassroomInfo via updateStats()
                                     } else {
                                         if (attendanceResponse.expired) {
                                             handleAuthError(attendanceResponse.error || 'Your session has expired', true);
@@ -987,7 +988,6 @@
                                             if (studentsListContainer) {
                                                 studentsListContainer.classList.remove('hidden');
                                             }
-                                            updateClassroomInfo();
                                         }
                                     }
                                 })
@@ -1195,6 +1195,22 @@
             }
             
             function markStudent(studentId, status) {
+                // Update attendance status
+                attendanceStatus[studentId] = status;
+                
+                // Update display status
+                const buttons = document.querySelectorAll(`button[onclick*="markStudent('${studentId}')"]`);
+                buttons.forEach(button => {
+                    if (button.classList.contains(status)) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+                
+                // Update stats
+                updateClassroomInfo();
+                updateSubmitButton();
                 // Toggle status if already selected
                 if (attendanceStatus[studentId] === status) {
                     delete attendanceStatus[studentId];

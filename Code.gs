@@ -907,17 +907,27 @@ function recordBulkAttendanceWithDate(studentStatusMap, attendanceDate, authToke
     
     // Build student map for easy lookup
     const studentMap = {};
+    let classroomOfCurrentStudents = null;
+    
     studentsData.forEach(row => {
       if (row[studentIdColIdx_students]) {
-        studentMap[row[studentIdColIdx_students]] = {
+        const studentId = row[studentIdColIdx_students].toString();
+        const classroom = studentClassroomColIdx !== -1 ? row[studentClassroomColIdx] : '';
+        
+        // Determine classroom from the students in studentStatusMap
+        if (studentStatusMap.hasOwnProperty(studentId) && classroomOfCurrentStudents === null) {
+          classroomOfCurrentStudents = classroom;
+        }
+        
+        studentMap[studentId] = {
           firstName: row[studentFirstNameColIdx],
           lastName: row[studentLastNameColIdx],
-          classroom: studentClassroomColIdx !== -1 ? row[studentClassroomColIdx] : ''
+          classroom: classroom
         };
       }
     });
     
-    // First remove existing records for this date and students
+    // First remove existing records for this date, classroom and students
     const currentDate = Utilities.formatDate(attendanceDateObj, Session.getScriptTimeZone(), 'yyyy-MM-dd');
     const existingData = attendanceSheet.getDataRange().getValues();
     existingData.shift(); // Remove header
@@ -927,7 +937,11 @@ function recordBulkAttendanceWithDate(studentStatusMap, attendanceDate, authToke
       if (row[dateColIdx] && Utilities.formatDate(new Date(row[dateColIdx]), Session.getScriptTimeZone(), 'yyyy-MM-dd') === currentDate) {
         const studentId = row[studentIdColIdx];
         if (studentId && studentStatusMap.hasOwnProperty(studentId.toString())) {
-          rowsToDelete.push(index + 2); // +2 because sheet rows are 1-indexed and we removed header
+          // Only delete if the student is in the same classroom as the current batch
+          const studentInfo = studentMap[studentId.toString()];
+          if (studentInfo && studentInfo.classroom === classroomOfCurrentStudents) {
+            rowsToDelete.push(index + 2); // +2 because sheet rows are 1-indexed and we removed header
+          }
         }
       }
     });

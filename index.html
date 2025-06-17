@@ -604,8 +604,7 @@
                     dateInfoDisplay.classList.add('hidden');
                 }
             }
-            
-            function hideStudentsList() {
+              function hideStudentsList() {
                 const studentsListContainer = document.getElementById('studentsListContainer');
                 if (studentsListContainer) {
                     studentsListContainer.classList.add('hidden');
@@ -638,18 +637,7 @@
                 if (dateInfoDisplay) {
                     dateInfoDisplay.classList.add('hidden');
                 }
-            }
-
-            function hideStudentsList() {
-                const studentsListContainer = document.getElementById('studentsListContainer');
-                if (studentsListContainer) {
-                    studentsListContainer.classList.add('hidden');
-                }
-                resetClassroomInfo();
-                resetStats();
-            }
-
-            function resetClassroomInfo() {
+            }function resetClassroomInfo() {
                 const classroomInfo = document.getElementById('classroomInfo');
                 if (classroomInfo) {
                     classroomInfo.innerHTML = `
@@ -663,6 +651,23 @@
                         </div>
                     `;
                 }
+                
+                // Reset stats card as well
+                resetStatsCard();
+            }
+            
+            function resetStatsCard() {
+                const statsPresentElement = document.getElementById('statsPresent');
+                const statsAbsentElement = document.getElementById('statsAbsent');
+                const statsUnmarkedElement = document.getElementById('statsUnmarked');
+                const attendanceProgressElement = document.getElementById('attendanceProgress');
+                const attendancePercentageElement = document.getElementById('attendancePercentage');
+                
+                if (statsPresentElement) statsPresentElement.textContent = '0';
+                if (statsAbsentElement) statsAbsentElement.textContent = '0';
+                if (statsUnmarkedElement) statsUnmarkedElement.textContent = '0';
+                if (attendanceProgressElement) attendanceProgressElement.style.width = '0%';
+                if (attendancePercentageElement) attendancePercentageElement.textContent = '0%';
             }
 
             function resetStats() {
@@ -910,9 +915,9 @@
                 
                 const selectedClassroom = classroomSelect.value;
                 const selectedDate = dateInput.value;
-                
-                if (!selectedClassroom || selectedClassroom === '') {
+                  if (!selectedClassroom || selectedClassroom === '') {
                     hideStudentsList();
+                    resetClassroomInfo();
                     return;
                 }
                 
@@ -1003,8 +1008,7 @@
                         hideStudentsList();
                     })
                     .getStudents(currentToken);
-            }
-              function updateClassroomInfo() {
+            }              function updateClassroomInfo() {
                 const classroomSelect = document.getElementById('classroomSelect');
                 const selectedClassroom = classroomSelect ? classroomSelect.value : '';
                 
@@ -1019,14 +1023,81 @@
                 let present = 0;
                 let absent = 0;
                 let late = 0;
+                let excused = 0;
+                let unmarked = 0;
                 
                 for (const studentId in attendanceStatus) {
                     if (attendanceStatus[studentId] === 'present') present++;
                     else if (attendanceStatus[studentId] === 'absent') absent++;
                     else if (attendanceStatus[studentId] === 'late') late++;
+                    else if (attendanceStatus[studentId] === 'excused') excused++;
                 }
                 
-                console.log(`Classroom ${classroomName} (${selectedClassroom}): Total=${total}, Present=${present}, Absent=${absent}, Late=${late}`);
+                unmarked = total - (present + absent + late + excused);
+                
+                // Update classroom info card
+                const classroomInfoElement = document.getElementById('classroomInfo');
+                if (classroomInfoElement) {
+                    classroomInfoElement.innerHTML = `
+                        <div class="space-y-4">
+                            <div class="text-center p-4 bg-gradient-to-r from-pastel-blue/20 to-pastel-purple/20 rounded-lg">
+                                <h4 class="text-lg font-semibold text-gray-800">${classroomName}</h4>
+                                <p class="text-sm text-gray-600">รหัสห้อง: ${selectedClassroom}</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div class="text-center p-3 bg-green-50 rounded-lg">
+                                    <div class="text-2xl font-bold text-green-600">${present}</div>
+                                    <div class="text-gray-600">เข้าแถว</div>
+                                </div>
+                                <div class="text-center p-3 bg-red-50 rounded-lg">
+                                    <div class="text-2xl font-bold text-red-600">${absent}</div>
+                                    <div class="text-gray-600">ไม่เข้าแถว</div>
+                                </div>
+                                <div class="text-center p-3 bg-yellow-50 rounded-lg">
+                                    <div class="text-2xl font-bold text-yellow-600">${late}</div>
+                                    <div class="text-gray-600">มาสาย</div>
+                                </div>
+                                <div class="text-center p-3 bg-blue-50 rounded-lg">
+                                    <div class="text-2xl font-bold text-blue-600">${excused}</div>
+                                    <div class="text-gray-600">ลา</div>
+                                </div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <div class="text-lg font-semibold text-gray-700">นักเรียนทั้งหมด: ${total} คน</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Update stats card
+                updateStatsCard(total, present, absent, late, excused, unmarked);
+                
+                console.log(`Classroom ${classroomName} (${selectedClassroom}): Total=${total}, Present=${present}, Absent=${absent}, Late=${late}, Excused=${excused}, Unmarked=${unmarked}`);
+            }
+            
+            function updateStatsCard(total, present, absent, late, excused, unmarked) {
+                // Update individual stats
+                const statsPresentElement = document.getElementById('statsPresent');
+                const statsAbsentElement = document.getElementById('statsAbsent');
+                const statsUnmarkedElement = document.getElementById('statsUnmarked');
+                const attendanceProgressElement = document.getElementById('attendanceProgress');
+                const attendancePercentageElement = document.getElementById('attendancePercentage');
+                
+                if (statsPresentElement) statsPresentElement.textContent = present;
+                if (statsAbsentElement) statsAbsentElement.textContent = absent;
+                if (statsUnmarkedElement) statsUnmarkedElement.textContent = unmarked;
+                
+                // Calculate and update percentage
+                const attendedCount = present + late; // นับมาสายเป็นมา
+                const percentage = total > 0 ? Math.round((attendedCount / total) * 100) : 0;
+                
+                if (attendanceProgressElement) {
+                    attendanceProgressElement.style.width = `${percentage}%`;
+                }
+                
+                if (attendancePercentageElement) {
+                    attendancePercentageElement.textContent = `${percentage}%`;
+                }
             }let currentStudents = [];
             let attendanceStatus = {};
             let classroomsData = []; // Store classroom data for name lookup
@@ -1163,30 +1234,19 @@
                 updateStats();
                 updateSubmitButton();
             }
-            
-            function updateStats() {
+              function updateStats() {
                 const presentCount = Object.values(attendanceStatus).filter(status => status === 'present').length;
                 const absentCount = Object.values(attendanceStatus).filter(status => status === 'absent').length;
                 const lateCount = Object.values(attendanceStatus).filter(status => status === 'late').length;
                 const excusedCount = Object.values(attendanceStatus).filter(status => status === 'excused').length;
                 const unmarkedCount = currentStudents.length - Object.keys(attendanceStatus).length;
-                const totalMarked = presentCount + absentCount + lateCount + excusedCount;
+                const totalStudents = currentStudents.length;
                 
-                // Update counters
-                document.getElementById('presentCount').textContent = presentCount;
-                document.getElementById('absentCount').textContent = absentCount;
-                document.getElementById('lateCount').textContent = lateCount;
-                document.getElementById('excusedCount').textContent = excusedCount;
+                // Update stats card using the helper function
+                updateStatsCard(totalStudents, presentCount, absentCount, lateCount, excusedCount, unmarkedCount);
                 
-                // Update classroom info stats
-                document.getElementById('statsPresent').textContent = presentCount;
-                document.getElementById('statsAbsent').textContent = absentCount + lateCount;
-                document.getElementById('statsUnmarked').textContent = unmarkedCount;
-                
-                // Update progress bar
-                const attendanceRate = totalMarked > 0 ? ((presentCount + lateCount) / totalMarked * 100) : 0;
-                document.getElementById('attendanceProgress').style.width = `${attendanceRate}%`;
-                document.getElementById('attendancePercentage').textContent = `${attendanceRate.toFixed(1)}%`;
+                // Also update classroom info
+                updateClassroomInfo();
             }
             
             function updateSubmitButton() {
